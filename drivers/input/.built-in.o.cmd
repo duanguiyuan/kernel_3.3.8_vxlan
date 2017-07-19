@@ -1,0 +1,1 @@
+cmd_drivers/input/built-in.o :=  mips-openwrt-linux-uclibc-ld  -m elf32btsmip   -r -o drivers/input/built-in.o drivers/input/input-core.o drivers/input/input-polldev.o drivers/input/evdev.o drivers/input/evbug.o drivers/input/keyboard/built-in.o drivers/input/misc/built-in.o 

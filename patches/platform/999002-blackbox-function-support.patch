@@ -1,0 +1,59 @@
+Index: linux-3.3.8/kernel/panic.c
+===================================================================
+--- linux-3.3.8.orig/kernel/panic.c
++++ linux-3.3.8/kernel/panic.c
+@@ -58,6 +58,12 @@ void __weak panic_smp_self_stop(void)
+ 		cpu_relax();
+ }
+ 
++
++/* task#839 begin:panic msg for showreboot 2013-6-17 add by zhangping */
++int (*add_reboot_rec)(char* msg) = NULL;
++EXPORT_SYMBOL(add_reboot_rec);
++/* task#839 end:panic msg for showreboot 2013-6-17 add by zhangping */
++
+ /**
+  *	panic - halt the system
+  *	@fmt: The text string to print
+@@ -93,6 +99,12 @@ void panic(const char *fmt, ...)
+ 	vsnprintf(buf, sizeof(buf), fmt, args);
+ 	va_end(args);
+ 	printk(KERN_EMERG "Kernel panic - not syncing: %s\n",buf);
++	/* task#839 begin:panic msg for showreboot 2013-6-17 add by zhangping */	
++	if (add_reboot_rec)
++	{
++		add_reboot_rec(buf);
++	}
++	/* task#839 end:panic msg for showreboot 2013-6-17 add by zhangping */
+ #ifdef CONFIG_DEBUG_BUGVERBOSE
+ 	/*
+ 	 * Avoid nested stack-dumping if a panic occurs during oops processing
+Index: linux-3.3.8/kernel/printk.c
+===================================================================
+--- linux-3.3.8.orig/kernel/printk.c
++++ linux-3.3.8/kernel/printk.c
+@@ -44,6 +44,11 @@
+ 
+ #include <asm/uaccess.h>
+ 
++/*2102-7-18 WeiHonggang add for blackbox begin*/
++void (*bb_log_char_hook)(char c) = NULL;
++EXPORT_SYMBOL(bb_log_char_hook);
++/*2102-7-18 WeiHonggang add for blackbox end*/
++
+ /*
+  * Architectures can override it:
+  */
+@@ -671,6 +676,12 @@ static void emit_log_char(char c)
+ 		con_start = log_end - log_buf_len;
+ 	if (logged_chars < log_buf_len)
+ 		logged_chars++;
++	/*2102-7-18 WeiHonggang add for blackbox begin*/
++	if(bb_log_char_hook != NULL)
++	{
++		bb_log_char_hook(c);
++	}
++	/*2102-7-18 WeiHonggang add for blackbox end*/
+ }
+ 
+ /*

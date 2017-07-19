@@ -1,0 +1,1 @@
+cmd_net/sched/sch_hfsc.ko := mips-openwrt-linux-uclibc-ld -r  -m elf32btsmip -T /home/duanguiyuan/SpiderNet/TA361/build_dir/linux-ar71xx_generic/linux-3.3.8/scripts/module-common.lds -s --build-id  -o net/sched/sch_hfsc.ko net/sched/sch_hfsc.o net/sched/sch_hfsc.mod.o

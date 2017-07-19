@@ -1,0 +1,683 @@
+Index: linux-3.3.8/drivers/net/usb/cdc_ether.c
+===================================================================
+--- linux-3.3.8.orig/drivers/net/usb/cdc_ether.c
++++ linux-3.3.8/drivers/net/usb/cdc_ether.c
+@@ -32,6 +32,17 @@
+ #include <linux/usb/cdc.h>
+ #include <linux/usb/usbnet.h>
+ 
++/*add by wangqi 2016-5-17 begin pn:add zte-micro modular support*/
++struct cdc_iface_info {
++	__u8 iface_number;
++};
++
++static const struct cdc_iface_info zte_ecm_iface_info_0199 = {
++    .iface_number = 1
++};
++#define SHORT_BIG_TO_LITTLE(x) ((unsigned short)((((unsigned short)(x)&(unsigned short)0x00ffU)<<8)|(((unsigned short)(x)&(unsigned short)0xff00U)>>8)))
++
++/*add by wangqi 2016-5-17 end pn:add zte-micro modular support*/
+ 
+ #if defined(CONFIG_USB_NET_RNDIS_HOST) || defined(CONFIG_USB_NET_RNDIS_HOST_MODULE)
+ 
+@@ -462,6 +473,81 @@ static int cdc_manage_power(struct usbne
+ 	dev->intf->needs_remote_wakeup = on;
+ 	return 0;
+ }
++/*add by wangqi 2016-5-17 begin pn:add zte-micro modular support*/
++static int zte_micro_cdc_bind(struct usbnet *dev, struct usb_interface *intf)
++{
++    int status;
++    struct cdc_state *info = (void *) &dev->data;
++    BUILD_BUG_ON((sizeof(((struct usbnet *)0)->data)< sizeof(struct cdc_state)));
++    status = usbnet_generic_cdc_bind(dev, intf);
++    if(status < 0)
++    {
++        //printk("usbnet_generic_cdc_bind failure\n");
++        status = usbnet_get_endpoints(dev,intf);
++        if(status < 0)
++        {
++            printk("usbnet_get_endpoints failure\n");
++            return status;
++        }
++    }
++    if(info->ether)
++    {
++        status = usbnet_get_ethernet_addr(dev,info->ether->iMACAddress);
++        if(status <0)
++        {
++            printk("usbnet_get_ethernet_addr failure\n");
++            usb_set_intfdata(info->data,NULL);
++            usb_driver_release_interface(driver_of(intf),info->data);
++            return status;
++        }
++    }
++    /* FIXME cdc-ether has some multicast code too, though it complains
++    * in routine cases. info->ether describes the multicast support.
++    * Implement that here, manipulating the cdc filter as needed.
++    */
++    return 0;
++}
++
++static int cdc_probe(struct usb_interface *intf, const struct usb_device_id *prod)
++{
++    struct driver_info *info;
++    int status;
++    struct usb_device *xdev;
++    xdev = interface_to_usbdev (intf);
++    if(SHORT_BIG_TO_LITTLE(xdev->descriptor.idVendor) == 0x19d2 && SHORT_BIG_TO_LITTLE(xdev->descriptor.idProduct) == 0x0199)
++    {
++        info = (struct driver_info *) prod->driver_info;
++        if (info)
++        {
++            dev_dbg(&intf->dev, "%s: Probe\n", info->description);
++        }   
++        if (info && info->data)
++        {
++            __u8 iface_num;
++            struct cdc_iface_info *iface_info;
++            
++            iface_num = intf->cur_altsetting->desc.bInterfaceNumber;
++            iface_info = (struct cdc_iface_info *) info->data;
++            dev_dbg (&intf->dev, "%s: trying iface %d\n",info->description, iface_num);
++            
++            if (iface_info->iface_number != iface_num)
++            {
++                return -ENODEV;
++            }
++            dev_info(&intf->dev, "%s: claiming interface %d\n",
++            info->description, iface_num);
++        }
++    }
++    status = usbnet_probe(intf, prod);
++    printk("cdc_probe usbnet_probe return %d\n", status);
++    if (status < 0)
++    {
++        return status;
++    }
++    
++    return 0;
++}
++/*add by wangqi 2016-5-17 end pn:add zte-micro modular support*/
+ 
+ static const struct driver_info	cdc_info = {
+ 	.description =	"CDC Ethernet Device",
+@@ -481,7 +567,17 @@ static const struct driver_info wwan_inf
+ 	.status =	usbnet_cdc_status,
+ 	.manage_power =	cdc_manage_power,
+ };
+-
++/*add by wangqi 2016-5-17 begin pn:add zte-micro modular support*/
++static const struct driver_info zte_ecm_dev_info_0199 = {
++	.description =  "ZTE Ethernet Device",
++	.flags =        FLAG_ETHER,
++	.bind =         zte_micro_cdc_bind,
++	.unbind =       usbnet_cdc_unbind,
++	.status =       usbnet_cdc_status,
++	.manage_power =	cdc_manage_power,
++	.data =         (unsigned long) &zte_ecm_iface_info_0199,
++};
++/*add by wangqi 2016-5-17 end pn:add zte-micro modular support*/
+ /*-------------------------------------------------------------------------*/
+ 
+ #define HUAWEI_VENDOR_ID	0x12D1
+@@ -635,6 +731,11 @@ static const struct usb_device_id	produc
+ 	.bInterfaceSubClass	= USB_CDC_SUBCLASS_ETHERNET,
+ 	.bInterfaceProtocol	= 255,
+ 	.driver_info = (unsigned long)&wwan_info,
++/*add by wangqi 2016-5-17 begin pn:add zte-micro modular support*/
++},{
++	USB_DEVICE_AND_INTERFACE_INFO(0x19D2, 0x0199, 0xFF, 0xFF, 0xFF),
++	.driver_info = (unsigned long) &zte_ecm_dev_info_0199,
++	/*add by wangqi 2016-5-17 end pn:add zte-micro modular support*/
+ },
+ 	{ },		// END
+ };
+@@ -643,7 +744,7 @@ MODULE_DEVICE_TABLE(usb, products);
+ static struct usb_driver cdc_driver = {
+ 	.name =		"cdc_ether",
+ 	.id_table =	products,
+-	.probe =	usbnet_probe,
++	.probe =	cdc_probe,
+ 	.disconnect =	usbnet_disconnect,
+ 	.suspend =	usbnet_suspend,
+ 	.resume =	usbnet_resume,
+Index: linux-3.3.8/drivers/net/usb/usbnet.c
+===================================================================
+--- linux-3.3.8.orig/drivers/net/usb/usbnet.c
++++ linux-3.3.8/drivers/net/usb/usbnet.c
+@@ -1423,16 +1423,27 @@ usbnet_probe (struct usb_interface *udev
+ 		// heuristic:  "usb%d" for links we know are two-host,
+ 		// else "eth%d" when there's reasonable doubt.  userspace
+ 		// can rename the link if it knows better.
++		#if 0
+ 		if ((dev->driver_info->flags & FLAG_ETHER) != 0 &&
+ 		    ((dev->driver_info->flags & FLAG_POINTTOPOINT) == 0 ||
+ 		     (net->dev_addr [0] & 0x02) == 0))
+-			strcpy (net->name, "eth%d");
++			//strcpy (net->name, "eth%d");
++			strcpy (net->name, "usb%d");
+ 		/* WLAN devices should always be named "wlan%d" */
+ 		if ((dev->driver_info->flags & FLAG_WLAN) != 0)
+ 			strcpy(net->name, "wlan%d");
+ 		/* WWAN devices should always be named "wwan%d" */
+ 		if ((dev->driver_info->flags & FLAG_WWAN) != 0)
+-			strcpy(net->name, "wwan%d");
++			//strcpy(net->name, "wwan%d");
++			strcpy (net->name, "usb%d");
++		#else
++		if ((dev->driver_info->flags & FLAG_ETHER) != 0
++				&& (net->dev_addr [0] & 0x02) == 0)
++			strcpy (net->name, "usb%d");
++		/* WLAN devices should always be named "wlan%d" */
++		if ((dev->driver_info->flags & FLAG_WLAN) != 0)
++			strcpy(net->name, "wlan%d");
++		#endif
+ 
+ 		/* maybe the remote can't receive an Ethernet MTU */
+ 		if (net->mtu > (dev->hard_mtu - net->hard_header_len))
+@@ -1458,12 +1469,14 @@ usbnet_probe (struct usb_interface *udev
+ 	if (!dev->rx_urb_size)
+ 		dev->rx_urb_size = dev->hard_mtu;
+ 	dev->maxpacket = usb_maxpacket (dev->udev, dev->out, 1);
+-
++	#if 0
+ 	if ((dev->driver_info->flags & FLAG_WLAN) != 0)
+ 		SET_NETDEV_DEVTYPE(net, &wlan_type);
+ 	if ((dev->driver_info->flags & FLAG_WWAN) != 0)
+ 		SET_NETDEV_DEVTYPE(net, &wwan_type);
+-
++	#else
++	SET_NETDEV_DEV(net, &udev->dev);
++	#endif
+ 	status = register_netdev (net);
+ 	if (status)
+ 		goto out3;
+Index: linux-3.3.8/drivers/usb/serial/option.c
+===================================================================
+--- linux-3.3.8.orig/drivers/usb/serial/option.c
++++ linux-3.3.8/drivers/usb/serial/option.c
+@@ -498,6 +498,16 @@ enum option_blacklist_reason {
+ };
+ 
+ #define MAX_BL_NUM  8
++
++#define HW_USB_DEVICE_AND_INTERFACE_INFO(vend, cl, sc, pr) \
++.match_flags = USB_DEVICE_ID_MATCH_INT_INFO \
++| USB_DEVICE_ID_MATCH_VENDOR, \
++.idVendor = (vend), \
++.bInterfaceClass = (cl), \
++.bInterfaceSubClass = (sc), \
++.bInterfaceProtocol = (pr)
++
++
+ struct option_blacklist_info {
+ 	/* bitfield of interface numbers for OPTION_BLACKLIST_SENDSETUP */
+ 	const unsigned long sendsetup;
+@@ -1214,6 +1224,377 @@ static const struct usb_device_id option
+ 	{ USB_DEVICE_AND_INTERFACE_INFO(MEDIATEK_VENDOR_ID, 0x00a1, 0xff, 0x02, 0x01) },
+ 	{ USB_DEVICE_AND_INTERFACE_INFO(MEDIATEK_VENDOR_ID, 0x00a2, 0xff, 0x00, 0x00) },
+ 	{ USB_DEVICE_AND_INTERFACE_INFO(MEDIATEK_VENDOR_ID, 0x00a2, 0xff, 0x02, 0x01) },        /* MediaTek MT6276M modem & app port */
++	{ USB_DEVICE_AND_INTERFACE_INFO(0x19D2,0x0199,0xff, 0xff, 0xff)},
++	/*Begin Add by guwen 2016-11-07 PN:电信700m*/
++	{ USB_DEVICE(0x19D2, 0x0536) },
++	/*End 	Add by guwen 2016-11-07 PN:电信700m*/
++	{ HW_USB_DEVICE_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, 0xff, 0xff, 0xff) },
++{ HW_USB_DEVICE_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, 0xff, 0x01, 0x01) },
++{ HW_USB_DEVICE_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, 0xff, 0x01, 0x02) },
++{ HW_USB_DEVICE_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, 0xff, 0x01, 0x03) },
++{ HW_USB_DEVICE_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, 0xff, 0x01, 0x04) },
++{ HW_USB_DEVICE_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, 0xff, 0x01, 0x05) },
++{ HW_USB_DEVICE_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, 0xff, 0x01, 0x06) },
++{ HW_USB_DEVICE_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, 0xff, 0x01, 0x31) },
++{ HW_USB_DEVICE_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, 0xff, 0x01, 0x32) },
++{ HW_USB_DEVICE_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, 0xff, 0x01, 0x33) },
++{ HW_USB_DEVICE_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, 0xff, 0x01, 0x34) },
++{ HW_USB_DEVICE_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, 0xff, 0x01, 0x35) },
++{ HW_USB_DEVICE_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, 0xff, 0x01, 0x36) },
++{ HW_USB_DEVICE_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, 0xff, 0x01, 0x61) },
++{ HW_USB_DEVICE_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, 0xff, 0x01, 0x62) },
++{ HW_USB_DEVICE_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, 0xff, 0x01, 0x63) },
++{ HW_USB_DEVICE_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, 0xff, 0x01, 0x64) },
++{ HW_USB_DEVICE_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, 0xff, 0x01, 0x65) },
++{ HW_USB_DEVICE_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, 0xff, 0x01, 0x66) },
++{ HW_USB_DEVICE_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, 0xff, 0x01, 0x0A) },
++{ HW_USB_DEVICE_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, 0xff, 0x01, 0x0B) },
++{ HW_USB_DEVICE_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, 0xff, 0x01, 0x0D) },
++{ HW_USB_DEVICE_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, 0xff, 0x01, 0x0E) },
++{ HW_USB_DEVICE_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, 0xff, 0x01, 0x0F) },
++{ HW_USB_DEVICE_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, 0xff, 0x01, 0x3A) },
++{ HW_USB_DEVICE_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, 0xff, 0x01, 0x3B) },
++{ HW_USB_DEVICE_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, 0xff, 0x01, 0x3D) },
++{ HW_USB_DEVICE_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, 0xff, 0x01, 0x3E) },
++{ HW_USB_DEVICE_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, 0xff, 0x01, 0x3F) },
++{ HW_USB_DEVICE_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, 0xff, 0x01, 0x6A) },
++{ HW_USB_DEVICE_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, 0xff, 0x01, 0x6B) },
++{ HW_USB_DEVICE_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, 0xff, 0x01, 0x6D) },
++{ HW_USB_DEVICE_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, 0xff, 0x01, 0x6E) },
++{ HW_USB_DEVICE_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, 0xff, 0x01, 0x6F) },
++{ HW_USB_DEVICE_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, 0xff, 0x01, 0x10) },
++{ HW_USB_DEVICE_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, 0xff, 0x01, 0x12) },
++{ HW_USB_DEVICE_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, 0xff, 0x01, 0x13) },
++{ HW_USB_DEVICE_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, 0xff, 0x01, 0x14) },
++{ HW_USB_DEVICE_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, 0xff, 0x01, 0x15) },
++{ HW_USB_DEVICE_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, 0xff, 0x01, 0x17) },
++{ HW_USB_DEVICE_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, 0xff, 0x01, 0x18) },
++{ HW_USB_DEVICE_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, 0xff, 0x01, 0x19) },
++{ HW_USB_DEVICE_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, 0xff, 0x01, 0x1A) },
++{ HW_USB_DEVICE_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, 0xff, 0x01, 0x1B) },
++{ HW_USB_DEVICE_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, 0xff, 0x01, 0x1C) },
++{ HW_USB_DEVICE_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, 0xff, 0x01, 0x1D) },
++{ HW_USB_DEVICE_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, 0xff, 0x01, 0x48) },
++{ HW_USB_DEVICE_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, 0xff, 0x01, 0x49) },
++{ HW_USB_DEVICE_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, 0xff, 0x01, 0x4A) },
++{ HW_USB_DEVICE_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, 0xff, 0x01, 0x4B) },
++{ HW_USB_DEVICE_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, 0xff, 0x01, 0x4C) },
++{ HW_USB_DEVICE_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, 0xff, 0x01, 0x4D) },
++{ HW_USB_DEVICE_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, 0xff, 0x01, 0x72) },
++{ HW_USB_DEVICE_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, 0xff, 0x01, 0x73) },
++{ HW_USB_DEVICE_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, 0xff, 0x01, 0x74) },
++{ HW_USB_DEVICE_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, 0xff, 0x01, 0x75) },
++{ HW_USB_DEVICE_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, 0xff, 0x01, 0x78) },
++{ HW_USB_DEVICE_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, 0xff, 0x01, 0x79) },
++{ HW_USB_DEVICE_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, 0xff, 0x01, 0x7A) },
++{ HW_USB_DEVICE_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, 0xff, 0x01, 0x7B) },
++{ HW_USB_DEVICE_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, 0xff, 0x01, 0x7C) },
++{ HW_USB_DEVICE_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, 0xff, 0x01, 0x7D) },
++{ HW_USB_DEVICE_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, 0xff, 0x02, 0x01) },
++{ HW_USB_DEVICE_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, 0xff, 0x02, 0x02) },
++{ HW_USB_DEVICE_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, 0xff, 0x02, 0x03) },
++{ HW_USB_DEVICE_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, 0xff, 0x02, 0x04) },
++{ HW_USB_DEVICE_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, 0xff, 0x02, 0x05) },
++{ HW_USB_DEVICE_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, 0xff, 0x02, 0x06) },
++{ HW_USB_DEVICE_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, 0xff, 0x02, 0x31) },
++{ HW_USB_DEVICE_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, 0xff, 0x02, 0x32) },
++{ HW_USB_DEVICE_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, 0xff, 0x02, 0x33) },
++{ HW_USB_DEVICE_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, 0xff, 0x02, 0x34) },
++{ HW_USB_DEVICE_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, 0xff, 0x02, 0x35) },
++{ HW_USB_DEVICE_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, 0xff, 0x02, 0x36) },
++{ HW_USB_DEVICE_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, 0xff, 0x02, 0x61) },
++{ HW_USB_DEVICE_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, 0xff, 0x02, 0x62) },
++{ HW_USB_DEVICE_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, 0xff, 0x02, 0x63) },
++{ HW_USB_DEVICE_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, 0xff, 0x02, 0x64) },
++{ HW_USB_DEVICE_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, 0xff, 0x02, 0x65) },
++{ HW_USB_DEVICE_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, 0xff, 0x02, 0x66) },
++{ HW_USB_DEVICE_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, 0xff, 0x02, 0x0A) },
++{ HW_USB_DEVICE_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, 0xff, 0x02, 0x0B) },
++{ HW_USB_DEVICE_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, 0xff, 0x02, 0x0D) },
++{ HW_USB_DEVICE_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, 0xff, 0x02, 0x0E) },
++{ HW_USB_DEVICE_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, 0xff, 0x02, 0x0F) },
++{ HW_USB_DEVICE_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, 0xff, 0x02, 0x3A) },
++{ HW_USB_DEVICE_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, 0xff, 0x02, 0x3B) },
++{ HW_USB_DEVICE_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, 0xff, 0x02, 0x3D) },
++{ HW_USB_DEVICE_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, 0xff, 0x02, 0x3E) },
++{ HW_USB_DEVICE_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, 0xff, 0x02, 0x3F) },
++{ HW_USB_DEVICE_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, 0xff, 0x02, 0x6A) },
++{ HW_USB_DEVICE_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, 0xff, 0x02, 0x6B) },
++{ HW_USB_DEVICE_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, 0xff, 0x02, 0x6D) },
++{ HW_USB_DEVICE_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, 0xff, 0x02, 0x6E) },
++{ HW_USB_DEVICE_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, 0xff, 0x02, 0x6F) },
++{ HW_USB_DEVICE_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, 0xff, 0x02, 0x10) },
++{ HW_USB_DEVICE_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, 0xff, 0x02, 0x12) },
++{ HW_USB_DEVICE_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, 0xff, 0x02, 0x13) },
++{ HW_USB_DEVICE_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, 0xff, 0x02, 0x14) },
++{ HW_USB_DEVICE_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, 0xff, 0x02, 0x15) },
++{ HW_USB_DEVICE_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, 0xff, 0x02, 0x17) },
++{ HW_USB_DEVICE_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, 0xff, 0x02, 0x18) },
++{ HW_USB_DEVICE_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, 0xff, 0x02, 0x19) },
++{ HW_USB_DEVICE_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, 0xff, 0x02, 0x1A) },
++{ HW_USB_DEVICE_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, 0xff, 0x02, 0x1B) },
++{ HW_USB_DEVICE_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, 0xff, 0x02, 0x1C) },
++{ HW_USB_DEVICE_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, 0xff, 0x02, 0x1D) },
++{ HW_USB_DEVICE_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, 0xff, 0x02, 0x48) },
++{ HW_USB_DEVICE_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, 0xff, 0x02, 0x49) },
++{ HW_USB_DEVICE_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, 0xff, 0x02, 0x4A) },
++{ HW_USB_DEVICE_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, 0xff, 0x02, 0x4B) },
++{ HW_USB_DEVICE_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, 0xff, 0x02, 0x4C) },
++{ HW_USB_DEVICE_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, 0xff, 0x02, 0x4D) },
++{ HW_USB_DEVICE_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, 0xff, 0x02, 0x72) },
++{ HW_USB_DEVICE_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, 0xff, 0x02, 0x73) },
++{ HW_USB_DEVICE_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, 0xff, 0x02, 0x74) },
++{ HW_USB_DEVICE_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, 0xff, 0x02, 0x75) },
++{ HW_USB_DEVICE_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, 0xff, 0x02, 0x78) },
++{ HW_USB_DEVICE_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, 0xff, 0x02, 0x79) },
++{ HW_USB_DEVICE_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, 0xff, 0x02, 0x7A) },
++{ HW_USB_DEVICE_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, 0xff, 0x02, 0x7B) },
++{ HW_USB_DEVICE_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, 0xff, 0x02, 0x7C) },
++{ HW_USB_DEVICE_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, 0xff, 0x02, 0x7D) },
++{ HW_USB_DEVICE_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, 0xff, 0x03, 0x01) },
++{ HW_USB_DEVICE_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, 0xff, 0x03, 0x02) },
++{ HW_USB_DEVICE_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, 0xff, 0x03, 0x03) },
++{ HW_USB_DEVICE_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, 0xff, 0x03, 0x04) },
++{ HW_USB_DEVICE_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, 0xff, 0x03, 0x05) },
++{ HW_USB_DEVICE_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, 0xff, 0x03, 0x06) },
++{ HW_USB_DEVICE_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, 0xff, 0x03, 0x31) },
++{ HW_USB_DEVICE_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, 0xff, 0x03, 0x32) },
++{ HW_USB_DEVICE_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, 0xff, 0x03, 0x33) },
++{ HW_USB_DEVICE_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, 0xff, 0x03, 0x34) },
++{ HW_USB_DEVICE_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, 0xff, 0x03, 0x35) },
++{ HW_USB_DEVICE_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, 0xff, 0x03, 0x36) },
++{ HW_USB_DEVICE_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, 0xff, 0x03, 0x61) },
++{ HW_USB_DEVICE_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, 0xff, 0x03, 0x62) },
++{ HW_USB_DEVICE_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, 0xff, 0x03, 0x63) },
++{ HW_USB_DEVICE_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, 0xff, 0x03, 0x64) },
++{ HW_USB_DEVICE_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, 0xff, 0x03, 0x65) },
++{ HW_USB_DEVICE_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, 0xff, 0x03, 0x66) },
++{ HW_USB_DEVICE_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, 0xff, 0x03, 0x0A) },
++{ HW_USB_DEVICE_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, 0xff, 0x03, 0x0B) },
++{ HW_USB_DEVICE_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, 0xff, 0x03, 0x0D) },
++{ HW_USB_DEVICE_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, 0xff, 0x03, 0x0E) },
++{ HW_USB_DEVICE_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, 0xff, 0x03, 0x0F) },
++{ HW_USB_DEVICE_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, 0xff, 0x03, 0x3A) },
++{ HW_USB_DEVICE_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, 0xff, 0x03, 0x3B) },
++{ HW_USB_DEVICE_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, 0xff, 0x03, 0x3D) },
++{ HW_USB_DEVICE_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, 0xff, 0x03, 0x3E) },
++{ HW_USB_DEVICE_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, 0xff, 0x03, 0x3F) },
++{ HW_USB_DEVICE_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, 0xff, 0x03, 0x6A) },
++{ HW_USB_DEVICE_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, 0xff, 0x03, 0x6B) },
++{ HW_USB_DEVICE_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, 0xff, 0x03, 0x6D) },
++{ HW_USB_DEVICE_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, 0xff, 0x03, 0x6E) },
++{ HW_USB_DEVICE_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, 0xff, 0x03, 0x6F) },
++{ HW_USB_DEVICE_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, 0xff, 0x03, 0x10) },
++{ HW_USB_DEVICE_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, 0xff, 0x03, 0x12) },
++{ HW_USB_DEVICE_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, 0xff, 0x03, 0x13) },
++{ HW_USB_DEVICE_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, 0xff, 0x03, 0x14) },
++{ HW_USB_DEVICE_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, 0xff, 0x03, 0x15) },
++{ HW_USB_DEVICE_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, 0xff, 0x03, 0x17) },
++{ HW_USB_DEVICE_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, 0xff, 0x03, 0x18) },
++{ HW_USB_DEVICE_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, 0xff, 0x03, 0x19) },
++{ HW_USB_DEVICE_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, 0xff, 0x03, 0x1A) },
++{ HW_USB_DEVICE_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, 0xff, 0x03, 0x1B) },
++{ HW_USB_DEVICE_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, 0xff, 0x03, 0x1C) },
++{ HW_USB_DEVICE_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, 0xff, 0x03, 0x1D) },
++{ HW_USB_DEVICE_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, 0xff, 0x03, 0x48) },
++{ HW_USB_DEVICE_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, 0xff, 0x03, 0x49) },
++{ HW_USB_DEVICE_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, 0xff, 0x03, 0x4A) },
++{ HW_USB_DEVICE_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, 0xff, 0x03, 0x4B) },
++{ HW_USB_DEVICE_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, 0xff, 0x03, 0x4C) },
++{ HW_USB_DEVICE_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, 0xff, 0x03, 0x4D) },
++{ HW_USB_DEVICE_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, 0xff, 0x03, 0x72) },
++{ HW_USB_DEVICE_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, 0xff, 0x03, 0x73) },
++{ HW_USB_DEVICE_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, 0xff, 0x03, 0x74) },
++{ HW_USB_DEVICE_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, 0xff, 0x03, 0x75) },
++{ HW_USB_DEVICE_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, 0xff, 0x03, 0x78) },
++{ HW_USB_DEVICE_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, 0xff, 0x03, 0x79) },
++{ HW_USB_DEVICE_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, 0xff, 0x03, 0x7A) },
++{ HW_USB_DEVICE_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, 0xff, 0x03, 0x7B) },
++{ HW_USB_DEVICE_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, 0xff, 0x03, 0x7C) },
++{ HW_USB_DEVICE_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, 0xff, 0x03, 0x7D) },
++{ HW_USB_DEVICE_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, 0xff, 0x04, 0x01) },
++{ HW_USB_DEVICE_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, 0xff, 0x04, 0x02) },
++{ HW_USB_DEVICE_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, 0xff, 0x04, 0x03) },
++{ HW_USB_DEVICE_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, 0xff, 0x04, 0x04) },
++{ HW_USB_DEVICE_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, 0xff, 0x04, 0x05) },
++{ HW_USB_DEVICE_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, 0xff, 0x04, 0x06) },
++{ HW_USB_DEVICE_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, 0xff, 0x04, 0x31) },
++{ HW_USB_DEVICE_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, 0xff, 0x04, 0x32) },
++{ HW_USB_DEVICE_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, 0xff, 0x04, 0x33) },
++{ HW_USB_DEVICE_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, 0xff, 0x04, 0x34) },
++{ HW_USB_DEVICE_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, 0xff, 0x04, 0x35) },
++{ HW_USB_DEVICE_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, 0xff, 0x04, 0x36) },
++{ HW_USB_DEVICE_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, 0xff, 0x04, 0x61) },
++{ HW_USB_DEVICE_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, 0xff, 0x04, 0x62) },
++{ HW_USB_DEVICE_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, 0xff, 0x04, 0x63) },
++{ HW_USB_DEVICE_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, 0xff, 0x04, 0x64) },
++{ HW_USB_DEVICE_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, 0xff, 0x04, 0x65) },
++{ HW_USB_DEVICE_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, 0xff, 0x04, 0x66) },
++{ HW_USB_DEVICE_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, 0xff, 0x04, 0x0A) },
++{ HW_USB_DEVICE_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, 0xff, 0x04, 0x0B) },
++{ HW_USB_DEVICE_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, 0xff, 0x04, 0x0D) },
++{ HW_USB_DEVICE_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, 0xff, 0x04, 0x0E) },
++{ HW_USB_DEVICE_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, 0xff, 0x04, 0x0F) },
++{ HW_USB_DEVICE_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, 0xff, 0x04, 0x3A) },
++{ HW_USB_DEVICE_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, 0xff, 0x04, 0x3B) },
++{ HW_USB_DEVICE_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, 0xff, 0x04, 0x3D) },
++{ HW_USB_DEVICE_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, 0xff, 0x04, 0x3E) },
++{ HW_USB_DEVICE_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, 0xff, 0x04, 0x3F) },
++{ HW_USB_DEVICE_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, 0xff, 0x04, 0x6A) },
++{ HW_USB_DEVICE_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, 0xff, 0x04, 0x6B) },
++{ HW_USB_DEVICE_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, 0xff, 0x04, 0x6D) },
++{ HW_USB_DEVICE_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, 0xff, 0x04, 0x6E) },
++{ HW_USB_DEVICE_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, 0xff, 0x04, 0x6F) },
++{ HW_USB_DEVICE_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, 0xff, 0x04, 0x10) },
++{ HW_USB_DEVICE_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, 0xff, 0x04, 0x12) },
++{ HW_USB_DEVICE_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, 0xff, 0x04, 0x13) },
++{ HW_USB_DEVICE_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, 0xff, 0x04, 0x14) },
++{ HW_USB_DEVICE_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, 0xff, 0x04, 0x15) },
++{ HW_USB_DEVICE_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, 0xff, 0x04, 0x17) },
++{ HW_USB_DEVICE_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, 0xff, 0x04, 0x18) },
++{ HW_USB_DEVICE_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, 0xff, 0x04, 0x19) },
++{ HW_USB_DEVICE_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, 0xff, 0x04, 0x1A) },
++{ HW_USB_DEVICE_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, 0xff, 0x04, 0x1B) },
++{ HW_USB_DEVICE_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, 0xff, 0x04, 0x1C) },
++{ HW_USB_DEVICE_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, 0xff, 0x04, 0x1D) },
++{ HW_USB_DEVICE_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, 0xff, 0x04, 0x48) },
++{ HW_USB_DEVICE_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, 0xff, 0x04, 0x49) },
++{ HW_USB_DEVICE_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, 0xff, 0x04, 0x4A) },
++{ HW_USB_DEVICE_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, 0xff, 0x04, 0x4B) },
++{ HW_USB_DEVICE_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, 0xff, 0x04, 0x4C) },
++{ HW_USB_DEVICE_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, 0xff, 0x04, 0x4D) },
++{ HW_USB_DEVICE_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, 0xff, 0x04, 0x72) },
++{ HW_USB_DEVICE_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, 0xff, 0x04, 0x73) },
++{ HW_USB_DEVICE_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, 0xff, 0x04, 0x74) },
++{ HW_USB_DEVICE_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, 0xff, 0x04, 0x75) },
++{ HW_USB_DEVICE_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, 0xff, 0x04, 0x78) },
++{ HW_USB_DEVICE_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, 0xff, 0x04, 0x79) },
++{ HW_USB_DEVICE_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, 0xff, 0x04, 0x7A) },
++{ HW_USB_DEVICE_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, 0xff, 0x04, 0x7B) },
++{ HW_USB_DEVICE_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, 0xff, 0x04, 0x7C) },
++{ HW_USB_DEVICE_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, 0xff, 0x04, 0x7D) },
++{ HW_USB_DEVICE_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, 0xff, 0x05, 0x01) },
++{ HW_USB_DEVICE_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, 0xff, 0x05, 0x02) },
++{ HW_USB_DEVICE_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, 0xff, 0x05, 0x03) },
++{ HW_USB_DEVICE_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, 0xff, 0x05, 0x04) },
++{ HW_USB_DEVICE_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, 0xff, 0x05, 0x05) },
++{ HW_USB_DEVICE_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, 0xff, 0x05, 0x06) },
++{ HW_USB_DEVICE_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, 0xff, 0x05, 0x31) },
++{ HW_USB_DEVICE_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, 0xff, 0x05, 0x32) },
++{ HW_USB_DEVICE_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, 0xff, 0x05, 0x33) },
++{ HW_USB_DEVICE_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, 0xff, 0x05, 0x34) },
++{ HW_USB_DEVICE_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, 0xff, 0x05, 0x35) },
++{ HW_USB_DEVICE_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, 0xff, 0x05, 0x36) },
++{ HW_USB_DEVICE_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, 0xff, 0x05, 0x61) },
++{ HW_USB_DEVICE_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, 0xff, 0x05, 0x62) },
++{ HW_USB_DEVICE_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, 0xff, 0x05, 0x63) },
++{ HW_USB_DEVICE_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, 0xff, 0x05, 0x64) },
++{ HW_USB_DEVICE_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, 0xff, 0x05, 0x65) },
++{ HW_USB_DEVICE_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, 0xff, 0x05, 0x66) },
++{ HW_USB_DEVICE_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, 0xff, 0x05, 0x0A) },
++{ HW_USB_DEVICE_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, 0xff, 0x05, 0x0B) },
++{ HW_USB_DEVICE_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, 0xff, 0x05, 0x0D) },
++{ HW_USB_DEVICE_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, 0xff, 0x05, 0x0E) },
++{ HW_USB_DEVICE_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, 0xff, 0x05, 0x0F) },
++{ HW_USB_DEVICE_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, 0xff, 0x05, 0x3A) },
++{ HW_USB_DEVICE_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, 0xff, 0x05, 0x3B) },
++{ HW_USB_DEVICE_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, 0xff, 0x05, 0x3D) },
++{ HW_USB_DEVICE_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, 0xff, 0x05, 0x3E) },
++{ HW_USB_DEVICE_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, 0xff, 0x05, 0x3F) },
++{ HW_USB_DEVICE_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, 0xff, 0x05, 0x6A) },
++{ HW_USB_DEVICE_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, 0xff, 0x05, 0x6B) },
++{ HW_USB_DEVICE_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, 0xff, 0x05, 0x6D) },
++{ HW_USB_DEVICE_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, 0xff, 0x05, 0x6E) },
++{ HW_USB_DEVICE_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, 0xff, 0x05, 0x6F) },
++{ HW_USB_DEVICE_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, 0xff, 0x05, 0x10) },
++{ HW_USB_DEVICE_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, 0xff, 0x05, 0x12) },
++{ HW_USB_DEVICE_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, 0xff, 0x05, 0x13) },
++{ HW_USB_DEVICE_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, 0xff, 0x05, 0x14) },
++{ HW_USB_DEVICE_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, 0xff, 0x05, 0x15) },
++{ HW_USB_DEVICE_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, 0xff, 0x05, 0x17) },
++{ HW_USB_DEVICE_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, 0xff, 0x05, 0x18) },
++{ HW_USB_DEVICE_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, 0xff, 0x05, 0x19) },
++{ HW_USB_DEVICE_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, 0xff, 0x05, 0x1A) },
++{ HW_USB_DEVICE_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, 0xff, 0x05, 0x1B) },
++{ HW_USB_DEVICE_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, 0xff, 0x05, 0x1C) },
++{ HW_USB_DEVICE_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, 0xff, 0x05, 0x1D) },
++{ HW_USB_DEVICE_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, 0xff, 0x05, 0x48) },
++{ HW_USB_DEVICE_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, 0xff, 0x05, 0x49) },
++{ HW_USB_DEVICE_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, 0xff, 0x05, 0x4A) },
++{ HW_USB_DEVICE_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, 0xff, 0x05, 0x4B) },
++{ HW_USB_DEVICE_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, 0xff, 0x05, 0x4C) },
++{ HW_USB_DEVICE_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, 0xff, 0x05, 0x4D) },
++{ HW_USB_DEVICE_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, 0xff, 0x05, 0x72) },
++{ HW_USB_DEVICE_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, 0xff, 0x05, 0x73) },
++{ HW_USB_DEVICE_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, 0xff, 0x05, 0x74) },
++{ HW_USB_DEVICE_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, 0xff, 0x05, 0x75) },
++{ HW_USB_DEVICE_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, 0xff, 0x05, 0x78) },
++{ HW_USB_DEVICE_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, 0xff, 0x05, 0x79) },
++{ HW_USB_DEVICE_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, 0xff, 0x05, 0x7A) },
++{ HW_USB_DEVICE_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, 0xff, 0x05, 0x7B) },
++{ HW_USB_DEVICE_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, 0xff, 0x05, 0x7C) },
++{ HW_USB_DEVICE_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, 0xff, 0x05, 0x7D) },
++{ HW_USB_DEVICE_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, 0xff, 0x06, 0x01) },
++{ HW_USB_DEVICE_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, 0xff, 0x06, 0x02) },
++{ HW_USB_DEVICE_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, 0xff, 0x06, 0x03) },
++{ HW_USB_DEVICE_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, 0xff, 0x06, 0x04) },
++{ HW_USB_DEVICE_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, 0xff, 0x06, 0x05) },
++{ HW_USB_DEVICE_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, 0xff, 0x06, 0x06) },
++{ HW_USB_DEVICE_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, 0xff, 0x06, 0x31) },
++{ HW_USB_DEVICE_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, 0xff, 0x06, 0x32) },
++{ HW_USB_DEVICE_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, 0xff, 0x06, 0x33) },
++{ HW_USB_DEVICE_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, 0xff, 0x06, 0x34) },
++{ HW_USB_DEVICE_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, 0xff, 0x06, 0x35) },
++{ HW_USB_DEVICE_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, 0xff, 0x06, 0x36) },
++{ HW_USB_DEVICE_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, 0xff, 0x06, 0x61) },
++{ HW_USB_DEVICE_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, 0xff, 0x06, 0x62) },
++{ HW_USB_DEVICE_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, 0xff, 0x06, 0x63) },
++{ HW_USB_DEVICE_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, 0xff, 0x06, 0x64) },
++{ HW_USB_DEVICE_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, 0xff, 0x06, 0x65) },
++{ HW_USB_DEVICE_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, 0xff, 0x06, 0x66) },
++{ HW_USB_DEVICE_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, 0xff, 0x06, 0x0A) },
++{ HW_USB_DEVICE_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, 0xff, 0x06, 0x0B) },
++{ HW_USB_DEVICE_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, 0xff, 0x06, 0x0D) },
++{ HW_USB_DEVICE_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, 0xff, 0x06, 0x0E) },
++{ HW_USB_DEVICE_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, 0xff, 0x06, 0x0F) },
++{ HW_USB_DEVICE_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, 0xff, 0x06, 0x3A) },
++{ HW_USB_DEVICE_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, 0xff, 0x06, 0x3B) },
++{ HW_USB_DEVICE_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, 0xff, 0x06, 0x3D) },
++{ HW_USB_DEVICE_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, 0xff, 0x06, 0x3E) },
++{ HW_USB_DEVICE_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, 0xff, 0x06, 0x3F) },
++{ HW_USB_DEVICE_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, 0xff, 0x06, 0x6A) },
++{ HW_USB_DEVICE_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, 0xff, 0x06, 0x6B) },
++{ HW_USB_DEVICE_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, 0xff, 0x06, 0x6D) },
++{ HW_USB_DEVICE_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, 0xff, 0x06, 0x6E) },
++{ HW_USB_DEVICE_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, 0xff, 0x06, 0x6F) },
++{ HW_USB_DEVICE_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, 0xff, 0x06, 0x10) },
++{ HW_USB_DEVICE_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, 0xff, 0x06, 0x12) },
++{ HW_USB_DEVICE_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, 0xff, 0x06, 0x13) },
++{ HW_USB_DEVICE_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, 0xff, 0x06, 0x14) },
++{ HW_USB_DEVICE_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, 0xff, 0x06, 0x15) },
++{ HW_USB_DEVICE_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, 0xff, 0x06, 0x17) },
++{ HW_USB_DEVICE_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, 0xff, 0x06, 0x18) },
++{ HW_USB_DEVICE_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, 0xff, 0x06, 0x19) },
++{ HW_USB_DEVICE_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, 0xff, 0x06, 0x1A) },
++{ HW_USB_DEVICE_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, 0xff, 0x06, 0x1B) },
++{ HW_USB_DEVICE_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, 0xff, 0x06, 0x1C) },
++{ HW_USB_DEVICE_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, 0xff, 0x06, 0x1D) },
++{ HW_USB_DEVICE_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, 0xff, 0x06, 0x48) },
++{ HW_USB_DEVICE_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, 0xff, 0x06, 0x49) },
++{ HW_USB_DEVICE_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, 0xff, 0x06, 0x4A) },
++{ HW_USB_DEVICE_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, 0xff, 0x06, 0x4B) },
++{ HW_USB_DEVICE_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, 0xff, 0x06, 0x4C) },
++{ HW_USB_DEVICE_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, 0xff, 0x06, 0x4D) },
++{ HW_USB_DEVICE_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, 0xff, 0x06, 0x72) },
++{ HW_USB_DEVICE_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, 0xff, 0x06, 0x73) },
++{ HW_USB_DEVICE_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, 0xff, 0x06, 0x74) },
++{ HW_USB_DEVICE_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, 0xff, 0x06, 0x75) },
++{ HW_USB_DEVICE_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, 0xff, 0x06, 0x78) },
++{ HW_USB_DEVICE_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, 0xff, 0x06, 0x79) },
++{ HW_USB_DEVICE_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, 0xff, 0x06, 0x7A) },
++{ HW_USB_DEVICE_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, 0xff, 0x06, 0x7B) },
++{ HW_USB_DEVICE_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, 0xff, 0x06, 0x7C) },
++{ HW_USB_DEVICE_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, 0xff, 0x06, 0x7D) }, 
+ 	{ } /* Terminating entry */
+ };
+ MODULE_DEVICE_TABLE(usb, option_ids);
+@@ -1367,6 +1748,10 @@ static int option_probe(struct usb_seria
+ 		serial->dev->descriptor.idVendor == PIRELLI_VENDOR_ID) &&
+ 		serial->interface->cur_altsetting->desc.bInterfaceClass != 0xff)
+ 		return -ENODEV;
++	if ( (serial->dev->descriptor.idVendor == ZTE_VENDOR_ID) && 
++		(serial->dev->descriptor.idProduct == 0x0199) && 
++		(serial->interface->cur_altsetting->desc.bInterfaceNumber == 1) )
++	 return -ENODEV;
+ 
+ 	/* Don't bind reserved interfaces (like network ones) which often have
+ 	 * the same class/subclass/protocol as the serial interfaces.  Look at
+Index: linux-3.3.8/drivers/usb/serial/usb-serial.c
+===================================================================
+--- linux-3.3.8.orig/drivers/usb/serial/usb-serial.c
++++ linux-3.3.8/drivers/usb/serial/usb-serial.c
+@@ -740,6 +740,12 @@ int usb_serial_probe(struct usb_interfac
+ 	int max_endpoints;
+ 
+ 	mutex_lock(&table_lock);
++	//added by qiao to avoid mismatch
++	if ( (interface->cur_altsetting->desc.bInterfaceNumber>=4) && (le16_to_cpu(dev->descriptor.idVendor) == 0x1c9e))
++		return -EDOM;
++	
++	if ( (interface->cur_altsetting->desc.bInterfaceNumber>=4) && (le16_to_cpu(dev->descriptor.idVendor) == 0x05c6))
++		return -EDOM;
+ 	type = search_serial_device(interface);
+ 	if (!type) {
+ 		mutex_unlock(&table_lock);
+@@ -1073,6 +1079,21 @@ int usb_serial_probe(struct usb_interfac
+ 		dev_err(&interface->dev, "No more free serial devices\n");
+ 		goto probe_error;
+ 	}
++    if(le16_to_cpu(dev->descriptor.idVendor) == PL2303_VENDOR_ID){
++       	mutex_lock(&table_lock);
++		for (i = 0; i < num_ports; ++i) {
++			if(serial_table[20+i] != NULL){
++                mutex_unlock(&table_lock);
++                goto probe_error;
++			}
++			serial_table[minor + i] = NULL;
++			serial_table[20+i] = serial;
++			serial->port[i]->number = 20 + i;
++		}
++		mutex_unlock(&table_lock);
++		minor = 20;
++   	}
++   	/* add end */
+ 	serial->minor = minor;
+ 
+ 	/* register all of the individual ports with the driver core */
+Index: linux-3.3.8/drivers/usb/serial/usb_wwan.c
+===================================================================
+--- linux-3.3.8.orig/drivers/usb/serial/usb_wwan.c
++++ linux-3.3.8/drivers/usb/serial/usb_wwan.c
+@@ -39,6 +39,9 @@
+ 
+ static bool debug;
+ 
++#define HW_bcdUSB 0x0110
++#define HUAWEI_VENDOR_ID 0x12d1
++
+ void usb_wwan_dtr_rts(struct usb_serial_port *port, int on)
+ {
+ 	struct usb_serial *serial = port->serial;
+@@ -213,6 +216,7 @@ int usb_wwan_write(struct tty_struct *tt
+ 	struct urb *this_urb = NULL;	/* spurious */
+ 	int err;
+ 	unsigned long flags;
++	struct usb_host_endpoint *ep;
+ 
+ 	portdata = usb_get_serial_port_data(port);
+ 	intfdata = port->serial->private;
+@@ -245,6 +249,16 @@ int usb_wwan_write(struct tty_struct *tt
+ 		memcpy(this_urb->transfer_buffer, buf, todo);
+ 		this_urb->transfer_buffer_length = todo;
+ 
++		/*add by wangqi  2016-3-1*/
++		if((HUAWEI_VENDOR_ID == port->serial->dev->descriptor.idVendor)
++			&& (HW_bcdUSB != port->serial->dev->descriptor.bcdUSB)){
++			ep = usb_pipe_endpoint(this_urb->dev, this_urb->pipe);
++			if(ep && (0 != this_urb->transfer_buffer_length)
++				&& (0 == this_urb->transfer_buffer_length % ep->desc.wMaxPacketSize)){
++				this_urb->transfer_flags |= URB_ZERO_PACKET;
++			}
++		}
++
+ 		spin_lock_irqsave(&intfdata->susp_lock, flags);
+ 		if (intfdata->suspended) {
+ 			usb_anchor_urb(this_urb, &portdata->delayed);

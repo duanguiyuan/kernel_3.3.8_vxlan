@@ -1,0 +1,3 @@
+kernel/fs/jffs2/jffs2.ko
+kernel/fs/overlayfs/overlayfs.ko
+kernel/fs/squashfs/squashfs.ko

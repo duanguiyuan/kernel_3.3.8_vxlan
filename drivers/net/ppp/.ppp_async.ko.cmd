@@ -1,0 +1,1 @@
+cmd_drivers/net/ppp/ppp_async.ko := mips-openwrt-linux-uclibc-ld -r  -m elf32btsmip -T /home/duanguiyuan/SpiderNet/TA361/build_dir/linux-ar71xx_generic/linux-3.3.8/scripts/module-common.lds -s --build-id  -o drivers/net/ppp/ppp_async.ko drivers/net/ppp/ppp_async.o drivers/net/ppp/ppp_async.mod.o
