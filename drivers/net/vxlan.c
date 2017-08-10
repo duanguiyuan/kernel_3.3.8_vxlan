@@ -2499,7 +2499,8 @@ static int vxlan_newlink(struct net *net, struct net_device *dev,
 			return -ENODEV;
 		}
 
-#if IS_ENABLED(CONFIG_IPV6)
+//#if IS_ENABLED(CONFIG_IPV6)
+#if 0
 		if (use_ipv6) {
 			struct inet6_dev *idev = __in6_dev_get(lowerdev);
 			if (idev && idev->cnf.disable_ipv6) {
@@ -2660,7 +2661,8 @@ static int vxlan_fill_info(struct sk_buff *skb, const struct net_device *dev)
 			if (nla_put_be32(skb, IFLA_VXLAN_GROUP,
 					 dst->remote_ip.sin.sin_addr.s_addr))
 				goto nla_put_failure;
-#if IS_ENABLED(CONFIG_IPV6)
+//#if IS_ENABLED(CONFIG_IPV6)
+#if 0
 		} else {
 			if (nla_put(skb, IFLA_VXLAN_GROUP6, sizeof(struct in6_addr),
 				    &dst->remote_ip.sin6.sin6_addr))
@@ -2677,7 +2679,8 @@ static int vxlan_fill_info(struct sk_buff *skb, const struct net_device *dev)
 			if (nla_put_be32(skb, IFLA_VXLAN_LOCAL,
 					 vxlan->saddr.sin.sin_addr.s_addr))
 				goto nla_put_failure;
-#if IS_ENABLED(CONFIG_IPV6)
+//#if IS_ENABLED(CONFIG_IPV6)
+#if 0
 		} else {
 			if (nla_put(skb, IFLA_VXLAN_LOCAL6, sizeof(struct in6_addr),
 				    &vxlan->saddr.sin6.sin6_addr))
