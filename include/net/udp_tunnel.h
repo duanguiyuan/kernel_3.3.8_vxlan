@@ -111,7 +111,8 @@ static inline void udp_tunnel_gro_complete(struct sk_buff *skb, int nhoff)
 
 static inline void udp_tunnel_encap_enable(struct socket *sock)
 {
-#if IS_ENABLED(CONFIG_IPV6)
+//#if IS_ENABLED(CONFIG_IPV6)
+#if 0
 	if (sock->sk->sk_family == PF_INET6)
 		ipv6_stub->udpv6_encap_enable();
 	else
