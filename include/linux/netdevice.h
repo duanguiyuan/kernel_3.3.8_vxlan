@@ -1519,6 +1519,13 @@ struct offload_callbacks {
 					       struct sk_buff *skb);
 	int			(*gro_complete)(struct sk_buff *skb, int nhoff);
 };
+
+struct packet_offload {
+	__be16			 type;	/* This is really htons(ether_type). */
+	struct offload_callbacks callbacks;
+	struct list_head	 list;
+};
+
 struct udp_offload {
 	__be16			 port;
 	u8			 ipproto;
@@ -2156,7 +2163,8 @@ extern gro_result_t	napi_frags_finish(struct napi_struct *napi,
 					  gro_result_t ret);
 extern struct sk_buff *	napi_frags_skb(struct napi_struct *napi);
 extern gro_result_t	napi_gro_frags(struct napi_struct *napi);
-
+extern struct packet_offload *gro_find_receive_by_type(__be16 type);
+extern struct packet_offload *gro_find_complete_by_type(__be16 type);
 static inline void napi_free_frags(struct napi_struct *napi)
 {
 	kfree_skb(napi->skb);
