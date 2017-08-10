@@ -372,6 +372,9 @@ struct sock {
 						  struct sk_buff *skb);  
 	void                    (*sk_destruct)(struct sock *sk);
 };
+#define __sk_user_data(sk) ((*((void __rcu **)&(sk)->sk_user_data)))
+#define rcu_dereference_sk_user_data(sk)	rcu_dereference(__sk_user_data((sk)))
+#define rcu_assign_sk_user_data(sk, ptr)	rcu_assign_pointer(__sk_user_data((sk)), ptr)
 
 /*
  * Hashed lists helper routines
