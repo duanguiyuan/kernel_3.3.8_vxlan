@@ -43,7 +43,8 @@
 #include <net/vxlan.h>
 #include <net/protocol.h>
 #include <net/udp_tunnel.h>
-#if IS_ENABLED(CONFIG_IPV6)
+//#if IS_ENABLED(CONFIG_IPV6)
+#if 0
 #include <net/ipv6.h>
 #include <net/addrconf.h>
 #include <net/ip6_tunnel.h>
@@ -152,7 +153,8 @@ static struct workqueue_struct *vxlan_wq;
 
 static void vxlan_sock_work(struct work_struct *work);
 
-#if IS_ENABLED(CONFIG_IPV6)
+//#if IS_ENABLED(CONFIG_IPV6)
+#if 0
 static inline
 bool vxlan_addr_equal(const union vxlan_addr *a, const union vxlan_addr *b)
 {
@@ -806,7 +808,8 @@ static int vxlan_fdb_parse(struct nlattr *tb[], struct vxlan_dev *vxlan,
 		if (remote->sa.sa_family == AF_INET) {
 			ip->sin.sin_addr.s_addr = htonl(INADDR_ANY);
 			ip->sa.sa_family = AF_INET;
-#if IS_ENABLED(CONFIG_IPV6)
+//#if IS_ENABLED(CONFIG_IPV6)
+#if 0
 		} else {
 			ip->sin6.sin6_addr = in6addr_any;
 			ip->sa.sa_family = AF_INET6;
@@ -1089,7 +1092,8 @@ static void vxlan_igmp_join(struct work_struct *work)
 		};
 
 		ip_mc_join_group(sk, &mreq);
-#if IS_ENABLED(CONFIG_IPV6)
+//#if IS_ENABLED(CONFIG_IPV6)
+#if 0
 	} else {
 		ipv6_stub->ipv6_sock_mc_join(sk, ifindex,
 					     &ip->sin6.sin6_addr);
@@ -1118,7 +1122,8 @@ static void vxlan_igmp_leave(struct work_struct *work)
 		};
 
 		ip_mc_leave_group(sk, &mreq);
-#if IS_ENABLED(CONFIG_IPV6)
+//#if IS_ENABLED(CONFIG_IPV6)
+#if 0
 	} else {
 		ipv6_stub->ipv6_sock_mc_drop(sk, ifindex,
 					     &ip->sin6.sin6_addr);
@@ -1203,7 +1208,8 @@ static void vxlan_rcv(struct vxlan_sock *vs,
 		oip = ip_hdr(skb);
 		saddr.sin.sin_addr.s_addr = oip->saddr;
 		saddr.sa.sa_family = AF_INET;
-#if IS_ENABLED(CONFIG_IPV6)
+//#if IS_ENABLED(CONFIG_IPV6)
+#if 0
 	} else {
 		oip6 = ipv6_hdr(skb);
 		saddr.sin6.sin6_addr = oip6->saddr;
@@ -1334,7 +1340,8 @@ out:
 	return NETDEV_TX_OK;
 }
 
-#if IS_ENABLED(CONFIG_IPV6)
+//#if IS_ENABLED(CONFIG_IPV6)
+#if 0
 static struct sk_buff *vxlan_na_create(struct sk_buff *request,
 	struct neighbour *n, bool isrouter)
 {
@@ -1523,7 +1530,8 @@ static bool route_shortcircuit(struct net_device *dev, struct sk_buff *skb)
 
 		break;
 	}
-#if IS_ENABLED(CONFIG_IPV6)
+//#if IS_ENABLED(CONFIG_IPV6)
+#if 0
 	case ETH_P_IPV6:
 	{
 		struct ipv6hdr *pip6;
@@ -1565,7 +1573,8 @@ static bool route_shortcircuit(struct net_device *dev, struct sk_buff *skb)
 	return false;
 }
 
-#if IS_ENABLED(CONFIG_IPV6)
+//#if IS_ENABLED(CONFIG_IPV6)
+#if 0
 static int vxlan6_xmit_skb(struct vxlan_sock *vs,
 			   struct dst_entry *dst, struct sk_buff *skb,
 			   struct net_device *dev, struct in6_addr *saddr,
@@ -1678,7 +1687,8 @@ static void vxlan_encap_bypass(struct sk_buff *skb, struct vxlan_dev *src_vxlan,
 	if (remote_ip->sa.sa_family == AF_INET) {
 		loopback.sin.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
 		loopback.sa.sa_family =  AF_INET;
-#if IS_ENABLED(CONFIG_IPV6)
+//#if IS_ENABLED(CONFIG_IPV6)
+#if 0
 	} else {
 		loopback.sin6.sin6_addr = in6addr_loopback;
 		loopback.sa.sa_family =  AF_INET6;
@@ -1794,7 +1804,8 @@ static void vxlan_xmit_one(struct sk_buff *skb, struct net_device *dev,
 		}
 
 		iptunnel_xmit_stats(err, &dev->stats, dev->tstats);
-#if IS_ENABLED(CONFIG_IPV6)
+//#if IS_ENABLED(CONFIG_IPV6)
+#if 0
 	} else {
 		struct sock *sk = vxlan->vn_sock->sock->sk;
 		struct dst_entry *ndst;
@@ -1880,7 +1891,8 @@ static netdev_tx_t vxlan_xmit(struct sk_buff *skb, struct net_device *dev)
 	if ((vxlan->flags & VXLAN_F_PROXY)) {
 		if (ntohs(eth->h_proto) == ETH_P_ARP)
 			return arp_reduce(dev, skb);
-#if IS_ENABLED(CONFIG_IPV6)
+//#if IS_ENABLED(CONFIG_IPV6)
+#if 0
 		else if (ntohs(eth->h_proto) == ETH_P_IPV6 &&
 			 pskb_may_pull(skb, sizeof(struct ipv6hdr)
 				       + sizeof(struct nd_msg)) &&
@@ -2452,7 +2464,8 @@ static int vxlan_newlink(struct net *net, struct net_device *dev,
 	if (data[IFLA_VXLAN_GROUP]) {
 		dst->remote_ip.sin.sin_addr.s_addr = nla_get_be32(data[IFLA_VXLAN_GROUP]);
 	} else if (data[IFLA_VXLAN_GROUP6]) {
-		if (!IS_ENABLED(CONFIG_IPV6))
+//		if (!IS_ENABLED(CONFIG_IPV6))
+		if(0)
 			return -EPFNOSUPPORT;
 
 		nla_memcpy(&dst->remote_ip.sin6.sin6_addr, data[IFLA_VXLAN_GROUP6],
@@ -2465,7 +2478,8 @@ static int vxlan_newlink(struct net *net, struct net_device *dev,
 		vxlan->saddr.sin.sin_addr.s_addr = nla_get_be32(data[IFLA_VXLAN_LOCAL]);
 		vxlan->saddr.sa.sa_family = AF_INET;
 	} else if (data[IFLA_VXLAN_LOCAL6]) {
-		if (!IS_ENABLED(CONFIG_IPV6))
+		//if (!IS_ENABLED(CONFIG_IPV6))
+			if(0)
 			return -EPFNOSUPPORT;
 
 		/* TODO: respect scope id */
