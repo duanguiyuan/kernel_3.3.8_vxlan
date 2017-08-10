@@ -1512,6 +1512,18 @@ struct packet_type {
 	void			*af_packet_priv;
 	struct list_head	list;
 };
+struct offload_callbacks {
+	struct sk_buff		*(*gso_segment)(struct sk_buff *skb,
+						netdev_features_t features);
+	struct sk_buff		**(*gro_receive)(struct sk_buff **head,
+					       struct sk_buff *skb);
+	int			(*gro_complete)(struct sk_buff *skb, int nhoff);
+};
+struct udp_offload {
+	__be16			 port;
+	u8			 ipproto;
+	struct offload_callbacks callbacks;
+};
 /* often modified stats are per cpu, other are shared (netdev->stats) */
 struct pcpu_sw_netstats {
 	u64     rx_packets;
