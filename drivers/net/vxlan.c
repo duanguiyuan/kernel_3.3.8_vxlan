@@ -277,7 +277,7 @@ static struct vxlan_sock *vxlan_find_sock(struct net *net,
 {
 	struct vxlan_sock *vs;
 
-	hlist_for_each_entry_rcu(vs, vs_head(net, port), hlist) {
+	hlist_for_each_entry_rcu_vxlan(vs, vs_head(net, port), hlist) {
 		if (inet_sk(vs->sock->sk)->inet_sport == port &&
 		    inet_sk(vs->sock->sk)->sk.sk_family == family)
 			return vs;
@@ -289,7 +289,7 @@ static struct vxlan_dev *vxlan_vs_find_vni(struct vxlan_sock *vs, u32 id)
 {
 	struct vxlan_dev *vxlan;
 
-	hlist_for_each_entry_rcu(vxlan, vni_head(vs, id), hlist) {
+	hlist_for_each_entry_rcu_vxlan(vxlan, vni_head(vs, id), hlist) {
 		if (vxlan->default_dst.remote_vni == id)
 			return vxlan;
 	}
@@ -464,7 +464,7 @@ static struct vxlan_fdb *__vxlan_find_mac(struct vxlan_dev *vxlan,
 	struct hlist_head *head = vxlan_fdb_head(vxlan, mac);
 	struct vxlan_fdb *f;
 
-	hlist_for_each_entry_rcu(f, head, hlist) {
+	hlist_for_each_entry_rcu_vxlan(f, head, hlist) {
 		if (ether_addr_equal(mac, f->eth_addr))
 			return f;
 	}
@@ -947,7 +947,7 @@ static int vxlan_fdb_dump(struct sk_buff *skb, struct netlink_callback *cb,
 		struct vxlan_fdb *f;
 		int err;
 
-		hlist_for_each_entry_rcu(f, &vxlan->fdb_head[h], hlist) {
+		hlist_for_each_entry_rcu_vxlan(f, &vxlan->fdb_head[h], hlist) {
 			struct vxlan_rdst *rd;
 
 			if (idx < cb->args[0])
@@ -2173,7 +2173,7 @@ void vxlan_get_rx_port(struct net_device *dev)
 
 	spin_lock(&vn->sock_lock);
 	for (i = 0; i < PORT_HASH_SIZE; ++i) {
-		hlist_for_each_entry_rcu(vs, &vn->sock_list[i], hlist) {
+		hlist_for_each_entry_rcu_vxlan(vs, &vn->sock_list[i], hlist) {
 			port = inet_sk(vs->sock->sk)->inet_sport;
 			sa_family = vs->sock->sk->sk_family;
 			dev->netdev_ops->ndo_add_vxlan_port(dev, sa_family,
