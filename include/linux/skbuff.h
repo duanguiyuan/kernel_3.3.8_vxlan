@@ -380,7 +380,9 @@ typedef unsigned char *sk_buff_data_t;
  *	@secmark: security marking
  *	@mark: Generic packet mark
  *	@dropcount: total number of sk_receive_queue overflows
+ *	@vlan_proto: vlan encapsulation protocol
  *	@vlan_tci: vlan tag control information
+ *	@inner_protocol: Protocol (encapsulation)
  *	@transport_header: Transport layer header
  *	@network_header: Network layer header
  *	@mac_header: Link layer header
@@ -418,6 +420,8 @@ struct sk_buff {
 				data_len;
 	__u16			mac_len,
 				hdr_len;
+	__u8			encapsulation:1;
+	__u8			inner_protocol_type:1;
 	union {
 		__wsum		csum;
 		struct {
@@ -487,6 +491,10 @@ struct sk_buff {
 	};
 
 	__u16			vlan_tci;
+	union {
+		__be16		inner_protocol;
+		__u8		inner_ipproto;
+	};
 
 	sk_buff_data_t		transport_header;
 	sk_buff_data_t		network_header;
@@ -1381,6 +1389,15 @@ static inline void skb_reserve(struct sk_buff *skb, int len)
 	skb->tail += len;
 }
 
+#define ENCAP_TYPE_ETHER	0
+#define ENCAP_TYPE_IPPROTO	1
+
+static inline void skb_set_inner_protocol(struct sk_buff *skb,
+					  __be16 protocol)
+{
+	skb->inner_protocol = protocol;
+	skb->inner_protocol_type = ENCAP_TYPE_ETHER;
+}
 static inline void skb_reset_mac_len(struct sk_buff *skb)
 {
 	skb->mac_len = skb->network_header - skb->mac_header;
