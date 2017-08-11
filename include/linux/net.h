@@ -249,7 +249,14 @@ extern struct socket *sockfd_lookup(int fd, int *err);
 #define		     sockfd_put(sock) fput(sock->file)
 extern int	     net_ratelimit(void);
 
+#define net_ratelimited_function(function, ...)			\
+do {								\
+	if (net_ratelimit())					\
+		function(__VA_ARGS__);				\
+} while (0)
 #define net_random()		random32()
+#define net_info_ratelimited(fmt, ...)				\
+	net_ratelimited_function(pr_info, fmt, ##__VA_ARGS__)
 #define net_srandom(seed)	srandom32((__force u32)seed)
 
 extern int   	     kernel_sendmsg(struct socket *sock, struct msghdr *msg,
