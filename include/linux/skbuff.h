@@ -460,7 +460,7 @@ struct sk_buff {
 #endif
 
 	__u32			rxhash;
-
+	__be16			vlan_proto;
 	__u16			queue_mapping;
 	kmemcheck_bitfield_begin(flags2);
 #ifdef CONFIG_IPV6_NDISC_NODETYPE
