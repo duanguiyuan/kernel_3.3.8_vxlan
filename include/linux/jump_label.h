@@ -5,7 +5,20 @@
 #include <linux/compiler.h>
 #include <linux/workqueue.h>
 
+extern bool static_key_initialized;
+
+#define STATIC_KEY_CHECK_USE() WARN(!static_key_initialized,		      \
+				    "%s used before call to jump_label_init", \
+				    __func__)
 #if defined(CC_HAVE_ASM_GOTO) && defined(CONFIG_JUMP_LABEL)
+struct static_key {
+	atomic_t enabled;
+/* Set lsb bit to 1 if branch is default true, 0 ot */
+	struct jump_entry *entries;
+#ifdef CONFIG_MODULES
+	struct static_key_mod *next;
+#endif
+};
 
 struct jump_label_key {
 	atomic_t enabled;
@@ -23,6 +36,10 @@ struct jump_label_key_deferred {
 
 # include <asm/jump_label.h>
 # define HAVE_JUMP_LABEL
+#else
+struct static_key {
+	atomic_t enabled;
+};
 #endif	/* CC_HAVE_ASM_GOTO && CONFIG_JUMP_LABEL */
 
 enum jump_label_type {
@@ -32,6 +49,12 @@ enum jump_label_type {
 
 struct module;
 
+#include <linux/atomic.h>
+
+static inline int static_key_count(struct static_key *key)
+{
+	return atomic_read(&key->enabled);
+}
 #ifdef HAVE_JUMP_LABEL
 
 #ifdef CONFIG_MODULES
@@ -60,6 +83,8 @@ extern void jump_label_inc(struct jump_label_key *key);
 extern void jump_label_dec(struct jump_label_key *key);
 extern void jump_label_dec_deferred(struct jump_label_key_deferred *key);
 extern bool jump_label_enabled(struct jump_label_key *key);
+extern void static_key_slow_inc(struct static_key *key);
+extern void static_key_slow_dec(struct static_key *key);
 extern void jump_label_apply_nops(struct module *mod);
 extern void jump_label_rate_limit(struct jump_label_key_deferred *key,
 		unsigned long rl);
@@ -93,7 +118,11 @@ static inline void jump_label_inc(struct jump_label_key *key)
 {
 	atomic_inc(&key->enabled);
 }
-
+static inline void static_key_slow_inc(struct static_key *key)
+{
+	STATIC_KEY_CHECK_USE();
+	atomic_inc(&key->enabled);
+}
 static inline void jump_label_dec(struct jump_label_key *key)
 {
 	atomic_dec(&key->enabled);
@@ -122,6 +151,12 @@ static inline int jump_label_apply_nops(struct module *mod)
 	return 0;
 }
 
+#define STATIC_KEY_INIT STATIC_KEY_INIT_FALSE
+#define jump_label_enabled static_key_enabled
+static inline bool static_key_enabled(struct static_key *key)
+{
+	return static_key_count(key) > 0;
+}
 static inline void jump_label_rate_limit(struct jump_label_key_deferred *key,
 		unsigned long rl)
 {

@@ -128,6 +128,8 @@ static char *static_command_line;
 
 static char *execute_command;
 static char *ramdisk_execute_command;
+bool static_key_initialized __read_mostly;
+EXPORT_SYMBOL_GPL(static_key_initialized);
 
 /*
  * If set, this is an indication to the drivers that reset the underlying

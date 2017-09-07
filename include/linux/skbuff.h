@@ -2200,6 +2200,18 @@ extern void skb_scrub_packet(struct sk_buff *skb, bool xnet);
 
 extern struct sk_buff *skb_segment(struct sk_buff *skb,
 				   netdev_features_t features);
+static inline void *__skb_header_pointer(const struct sk_buff *skb, int offset,
+					 int len, void *data, int hlen, void *buffer)
+{
+	if (hlen - offset >= len)
+		return data + offset;
+
+	if (!skb ||
+	    skb_copy_bits(skb, offset, buffer, len) < 0)
+		return NULL;
+
+	return buffer;
+}
 
 static inline void *skb_header_pointer(const struct sk_buff *skb, int offset,
 				       int len, void *buffer)
@@ -2446,6 +2458,13 @@ static inline void nf_reset(struct sk_buff *skb)
 #ifdef CONFIG_BRIDGE_NETFILTER
 	nf_bridge_put(skb->nf_bridge);
 	skb->nf_bridge = NULL;
+#endif
+}
+
+static inline void nf_reset_trace(struct sk_buff *skb)
+{
+#if IS_ENABLED(CONFIG_NETFILTER_XT_TARGET_TRACE) || defined(CONFIG_NF_TABLES)
+	skb->nf_trace = 0;
 #endif
 }
 

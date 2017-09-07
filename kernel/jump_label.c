@@ -58,8 +58,46 @@ jump_label_sort_entries(struct jump_entry *start, struct jump_entry *stop)
 	sort(start, size, sizeof(struct jump_entry), jump_label_cmp, NULL);
 }
 
-static void jump_label_update(struct jump_label_key *key, int enable);
 
+static void jump_label_update(struct jump_label_key *key, int enable);
+void static_key_slow_inc(struct static_key *key)
+{
+	STATIC_KEY_CHECK_USE();
+	if (atomic_inc_not_zero(&key->enabled))
+		return;
+
+	jump_label_lock();
+	if (atomic_read(&key->enabled) == 0) {
+		if (!jump_label_get_branch_default(key))
+			jump_label_update((jump_label_key *key)key, JUMP_LABEL_ENABLE);
+		else
+			jump_label_update((jump_label_key *key)key, JUMP_LABEL_DISABLE);
+	}
+	atomic_inc(&key->enabled);
+	jump_label_unlock();
+}
+EXPORT_SYMBOL_GPL(static_key_slow_inc);
+
+static void __static_key_slow_dec(struct static_key *key,
+		unsigned long rate_limit, struct delayed_work *work)
+{
+	if (!atomic_dec_and_mutex_lock(&key->enabled, &jump_label_mutex)) {
+		WARN(atomic_read(&key->enabled) < 0,
+		     "jump label: negative count!\n");
+		return;
+	}
+
+	if (rate_limit) {
+		atomic_inc(&key->enabled);
+		schedule_delayed_work(work, rate_limit);
+	} else {
+		if (!jump_label_get_branch_default(key))
+			jump_label_update(key, JUMP_LABEL_DISABLE);
+		else
+			jump_label_update(key, JUMP_LABEL_ENABLE);
+	}
+	jump_label_unlock();
+}
 void jump_label_inc(struct jump_label_key *key)
 {
 	if (atomic_inc_not_zero(&key->enabled))

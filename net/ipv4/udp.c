@@ -106,6 +106,7 @@
 #include <net/checksum.h>
 #include <net/xfrm.h>
 #include <trace/events/udp.h>
+#include <linux/jump_label.h> //µÈÍ¬ÓÚ<linux/static_key.h>
 #include "udp_impl.h"
 
 struct udp_table udp_table __read_mostly;
@@ -1377,6 +1378,7 @@ static int __udp_queue_rcv_skb(struct sock *sk, struct sk_buff *skb)
 
 }
 
+static struct static_key udp_encap_needed __read_mostly;
 void udp_encap_enable(void)
 {
 	if (!static_key_enabled(&udp_encap_needed))

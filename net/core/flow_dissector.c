@@ -8,6 +8,7 @@
 #include <linux/if_pppox.h>
 #include <linux/ppp_defs.h>
 #include <net/flow_keys.h>
+#include <linux/jump_label.h>
 
 /* copy saddr & daddr, possibly using 64bit load/store
  * Equivalent to :	flow->src = iph->saddr;
@@ -20,6 +21,40 @@ static void iph_to_flow_copy_addrs(struct flow_keys *flow, const struct iphdr *i
 	memcpy(&flow->src, &iph->saddr, sizeof(flow->src) + sizeof(flow->dst));
 }
 
+/**
+ * __skb_flow_get_ports - extract the upper layer ports and return them
+ * @skb: sk_buff to extract the ports from
+ * @thoff: transport header offset
+ * @ip_proto: protocol for which to get port offset
+ * @data: raw buffer pointer to the packet, if NULL use skb->data
+ * @hlen: packet header length, if @data is NULL use skb_headlen(skb)
+ *
+ * The function will try to retrieve the ports at offset thoff + poff where poff
+ * is the protocol port offset returned from proto_ports_offset
+ */
+__be32 __skb_flow_get_ports(const struct sk_buff *skb, int thoff, u8 ip_proto,
+			    void *data, int hlen)
+{
+	int poff = proto_ports_offset(ip_proto);
+
+	if (!data) {
+		data = skb->data;
+		hlen = skb_headlen(skb);
+	}
+
+	if (poff >= 0) {
+		__be32 *ports, _ports;
+
+		ports = __skb_header_pointer(skb, thoff + poff,
+					     sizeof(_ports), data, hlen, &_ports);
+	/* 可能会有问题*/
+	//	if (ports)
+	//		return (__be32)net_hdr_word(ports);
+	}
+
+	return 0;
+}
+EXPORT_SYMBOL(__skb_flow_get_ports);
 
 
 bool skb_flow_dissect(const struct sk_buff *skb, struct flow_keys *flow)
@@ -144,7 +179,7 @@ ipv6:
 	return true;
 }
 EXPORT_SYMBOL(skb_flow_dissect);
-
+#define FCOE_HEADER_LEN 38
 /**
  * __skb_flow_dissect - extract the flow_keys struct and return it
  * @skb: sk_buff to extract the flow from, can be NULL if the rest are specified
@@ -196,6 +231,7 @@ ip:
 		break;
 	}
 	case htons(ETH_P_IPV6): {
+#if 0
 		const struct ipv6hdr *iph;
 		struct ipv6hdr _iph;
 		__be32 flow_label;
@@ -228,7 +264,7 @@ ipv6:
 
 			return true;
 		}
-
+#endif
 		break;
 	}
 	case htons(ETH_P_8021AD):
@@ -258,7 +294,7 @@ ipv6:
 		case htons(PPP_IP):
 			goto ip;
 		case htons(PPP_IPV6):
-			goto ipv6;
+		//	goto ipv6;
 		default:
 			return false;
 		}
@@ -314,7 +350,7 @@ ipv6:
 		goto ip;
 	case IPPROTO_IPV6:
 		proto = htons(ETH_P_IPV6);
-		goto ipv6;
+		//goto ipv6;
 	default:
 		break;
 	}
@@ -331,6 +367,58 @@ ipv6:
 	return true;
 }
 EXPORT_SYMBOL(__skb_flow_dissect);
+
+#define STATIC_KEY_INIT_TRUE ((struct static_key)		\
+	{ .enabled = ATOMIC_INIT(1),				\
+	  .entries = (void *)JUMP_LABEL_TYPE_TRUE_BRANCH })
+#define STATIC_KEY_INIT_FALSE ((struct static_key)		\
+	{ .enabled = ATOMIC_INIT(0),				\
+	  .entries = (void *)JUMP_LABEL_TYPE_FALSE_BRANCH })
+#define net_get_random_once(buf, nbytes)				\
+	({								\
+		bool ___ret = false;					\
+		static bool ___done = false;				\
+		static struct static_key ___once_key =			\
+			STATIC_KEY_INIT_TRUE;				\
+		if (static_key_true(&___once_key))			\
+			___ret = __net_get_random_once(buf,		\
+						       nbytes,		\
+						       &___done,	\
+						       &___once_key);	\
+		___ret;							\
+	})
+static u32 hashrnd __read_mostly;
+static __always_inline void __flow_hash_secret_init(void)
+{
+//可能会有问题
+//	net_get_random_once(&hashrnd, sizeof(hashrnd));
+}
+
+static __always_inline u32 __flow_hash_3words(u32 a, u32 b, u32 c)
+{
+	__flow_hash_secret_init();
+	return jhash_3words(a, b, c, hashrnd);
+}
+static inline u32 __flow_hash_from_keys(struct flow_keys *keys)
+{
+	u32 hash;
+
+	/* get a consistent hash (same value on both flow directions) */
+	if (((__force u32)keys->dst < (__force u32)keys->src) ||
+	    (((__force u32)keys->dst == (__force u32)keys->src) &&
+	     ((__force u16)keys->port16[1] < (__force u16)keys->port16[0]))) {
+		swap(keys->dst, keys->src);
+		swap(keys->port16[0], keys->port16[1]);
+	}
+
+	hash = __flow_hash_3words((__force u32)keys->dst,
+				  (__force u32)keys->src,
+				  (__force u32)keys->ports);
+	if (!hash)
+		hash = 1;
+
+	return hash;
+}
 static inline bool skb_flow_dissect_vxlan(const struct sk_buff *skb, struct flow_keys *flow)
 {
 	return __skb_flow_dissect(skb, flow, NULL, 0, 0, 0);

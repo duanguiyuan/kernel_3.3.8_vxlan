@@ -1546,6 +1546,20 @@ struct pcpu_sw_netstats {
 	struct u64_stats_sync   syncp;
 };
 
+#define netdev_alloc_pcpu_stats(type)				\
+({								\
+	typeof(type) __percpu *pcpu_stats = alloc_percpu(type); \
+	if (pcpu_stats)	{					\
+		int i;						\
+		for_each_possible_cpu(i) {			\
+			typeof(type) *stat;			\
+			stat = per_cpu_ptr(pcpu_stats, i);	\
+			u64_stats_init(&stat->syncp);		\
+		}						\
+	}							\
+	pcpu_stats;						\
+})
+
 #include <linux/notifier.h>
 
 /* netdevice notifier chain. Please remember to update the rtnetlink
@@ -2141,6 +2155,7 @@ static inline int netif_copy_real_num_queues(struct net_device *to_dev,
 #endif
 }
 
+#define DEFAULT_MAX_NUM_RSS_QUEUES	(8)
 int netif_get_num_default_rss_queues(void);
 /* Use this variant when it is known for sure that it
  * is executing from hardware interrupt context or with hardware interrupts
