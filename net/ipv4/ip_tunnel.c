@@ -460,12 +460,12 @@ int ip_tunnel_rcv(struct ip_tunnel *tunnel, struct sk_buff *skb,
 	}
 
 	skb_reset_network_header(skb);
-//ÔÝÊ±×¢ÊÍ
-//	err = IP_ECN_decapsulate(iph, skb);
+
+	err = IP_ECN_decapsulate(iph, skb);
 	if (unlikely(err)) {
-	//	if (log_ecn_error)
-	//		net_info_ratelimited("non-ECT from %pI4 with TOS=%#x\n",
-	//				&iph->saddr, iph->tos);
+		if (log_ecn_error)
+			net_info_ratelimited("non-ECT from %pI4 with TOS=%#x\n",
+					&iph->saddr, iph->tos);
 		if (err > 1) {
 			++tunnel->dev->stats.rx_frame_errors;
 			++tunnel->dev->stats.rx_errors;
