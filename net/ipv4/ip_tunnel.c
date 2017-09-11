@@ -165,9 +165,8 @@ struct ip_tunnel *ip_tunnel_lookup(struct ip_tunnel_net *itn,
 
 	hash = ip_tunnel_hash(key, remote);
 	head = &itn->tunnels[hash];
-//ÔÝÊ±×¢ÊÍ
-#if 0
-	hlist_for_each_entry_rcu(t, head, hash_node) {
+
+	hlist_for_each_entry_rcu_vxlan(t, head, hash_node) {
 		if (local != t->parms.iph.saddr ||
 		    remote != t->parms.iph.daddr ||
 		    !(t->dev->flags & IFF_UP))
@@ -182,7 +181,7 @@ struct ip_tunnel *ip_tunnel_lookup(struct ip_tunnel_net *itn,
 			cand = t;
 	}
 
-	hlist_for_each_entry_rcu(t, head, hash_node) {
+	hlist_for_each_entry_rcu_vxlan(t, head, hash_node) {
 		if (remote != t->parms.iph.daddr ||
 		    t->parms.iph.saddr != 0 ||
 		    !(t->dev->flags & IFF_UP))
@@ -196,12 +195,10 @@ struct ip_tunnel *ip_tunnel_lookup(struct ip_tunnel_net *itn,
 		else if (!cand)
 			cand = t;
 	}
-#endif
+
 	hash = ip_tunnel_hash(key, 0);
 	head = &itn->tunnels[hash];
-//ÔÝÊ±×¢ÊÍ
-#if 0
-	hlist_for_each_entry_rcu(t, head, hash_node) {
+	hlist_for_each_entry_rcu_vxlan(t, head, hash_node) {
 		if ((local != t->parms.iph.saddr || t->parms.iph.daddr != 0) &&
 		    (local != t->parms.iph.daddr || !ipv4_is_multicast(local)))
 			continue;
@@ -217,12 +214,11 @@ struct ip_tunnel *ip_tunnel_lookup(struct ip_tunnel_net *itn,
 		else if (!cand)
 			cand = t;
 	}
-#endif
+
 	if (flags & TUNNEL_NO_KEY)
 		goto skip_key_lookup;
-//ÔÝÊ±×¢ÊÍ
-#if 0
-	hlist_for_each_entry_rcu(t, head, hash_node) {
+
+	hlist_for_each_entry_rcu_vxlan(t, head, hash_node) {
 		if (t->parms.i_key != key ||
 		    t->parms.iph.saddr != 0 ||
 		    t->parms.iph.daddr != 0 ||
@@ -234,7 +230,7 @@ struct ip_tunnel *ip_tunnel_lookup(struct ip_tunnel_net *itn,
 		else if (!cand)
 			cand = t;
 	}
-#endif
+
 skip_key_lookup:
 	if (cand)
 		return cand;
@@ -289,9 +285,8 @@ static struct ip_tunnel *ip_tunnel_find(struct ip_tunnel_net *itn,
 	int link = parms->link;
 	struct ip_tunnel *t = NULL;
 	struct hlist_head *head = ip_bucket(itn, parms);
-//ÔÝÊ±×¢ÊÍ
-#if 0
-	hlist_for_each_entry_rcu(t, head, hash_node) {
+
+	hlist_for_each_entry_rcu_vxlan(t, head, hash_node) {
 		if (local == t->parms.iph.saddr &&
 		    remote == t->parms.iph.daddr &&
 		    link == t->parms.link &&
@@ -299,7 +294,7 @@ static struct ip_tunnel *ip_tunnel_find(struct ip_tunnel_net *itn,
 		    ip_tunnel_key_match(&t->parms, flags, key))
 			break;
 	}
-#endif
+
 	return t;
 }
 
@@ -325,7 +320,9 @@ static struct net_device *__ip_tunnel_create(struct net *net,
 
 	ASSERT_RTNL();
 //ÔÝÊ±×¢ÊÍ
-//	dev = alloc_netdev(ops->priv_size, name, NET_NAME_UNKNOWN, ops->setup);
+/* ÐÞ¸Ä */
+	//dev = alloc_netdev(ops->priv_size, name, NET_NAME_UNKNOWN, ops->setup);
+	dev = alloc_netdev(ops->priv_size, name, ops->setup);
 	if (!dev) {
 		err = -ENOMEM;
 		goto failed;
