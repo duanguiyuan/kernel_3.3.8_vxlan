@@ -1,1 +1,0 @@
-cmd_net/netfilter/nfnetlink.ko := mips-openwrt-linux-uclibc-ld -r  -m elf32btsmip -T /home/duanguiyuan/SpiderNet/TA361/build_dir/linux-ar71xx_generic/linux-3.3.8/scripts/module-common.lds -s --build-id  -o net/netfilter/nfnetlink.ko net/netfilter/nfnetlink.o net/netfilter/nfnetlink.mod.o

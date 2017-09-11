@@ -1,1 +1,0 @@
-cmd_net/sched/cls_fw.ko := mips-openwrt-linux-uclibc-ld -r  -m elf32btsmip -T /home/duanguiyuan/SpiderNet/TA361/build_dir/linux-ar71xx_generic/linux-3.3.8/scripts/module-common.lds -s --build-id  -o net/sched/cls_fw.ko net/sched/cls_fw.o net/sched/cls_fw.mod.o

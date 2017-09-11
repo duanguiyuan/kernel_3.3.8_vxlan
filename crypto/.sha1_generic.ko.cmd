@@ -1,1 +1,0 @@
-cmd_crypto/sha1_generic.ko := mips-openwrt-linux-uclibc-ld -r  -m elf32btsmip -T /home/duanguiyuan/SpiderNet/TA361/build_dir/linux-ar71xx_generic/linux-3.3.8/scripts/module-common.lds -s --build-id  -o crypto/sha1_generic.ko crypto/sha1_generic.o crypto/sha1_generic.mod.o

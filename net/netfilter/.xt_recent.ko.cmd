@@ -1,1 +1,0 @@
-cmd_net/netfilter/xt_recent.ko := mips-openwrt-linux-uclibc-ld -r  -m elf32btsmip -T /home/duanguiyuan/SpiderNet/TA361/build_dir/linux-ar71xx_generic/linux-3.3.8/scripts/module-common.lds -s --build-id  -o net/netfilter/xt_recent.ko net/netfilter/xt_recent.o net/netfilter/xt_recent.mod.o

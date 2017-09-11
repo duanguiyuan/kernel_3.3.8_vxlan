@@ -1,1 +1,0 @@
-cmd_crypto/built-in.o :=  mips-openwrt-linux-uclibc-ld  -m elf32btsmip   -r -o crypto/built-in.o crypto/crypto.o crypto/crypto_wq.o crypto/crypto_algapi.o crypto/aead.o crypto/crypto_blkcipher.o crypto/chainiv.o crypto/eseqiv.o crypto/seqiv.o crypto/crypto_hash.o crypto/pcompress.o crypto/cryptomgr.o crypto/ctr.o crypto/ccm.o crypto/rng.o crypto/krng.o 
