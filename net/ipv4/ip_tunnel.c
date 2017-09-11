@@ -41,6 +41,7 @@
 #include <linux/if_vlan.h>
 #include <linux/rculist.h>
 #include <linux/err.h>
+#include <linux/hash.h>
 
 #include <net/sock.h>
 #include <net/ip.h>
@@ -58,7 +59,8 @@
 #include <net/udp.h>
 #include <net/gue.h>
 
-#if IS_ENABLED(CONFIG_IPV6)
+//#if IS_ENABLED(CONFIG_IPV6)
+#if 0
 #include <net/ipv6.h>
 #include <net/ip6_fib.h>
 #include <net/ip6_route.h>
@@ -84,7 +86,9 @@ static void __tunnel_dst_set(struct ip_tunnel_dst *idst,
 static noinline void tunnel_dst_set(struct ip_tunnel *t,
 			   struct dst_entry *dst, __be32 saddr)
 {
-	__tunnel_dst_set(raw_cpu_ptr(t->dst_cache), dst, saddr);
+	//ÔÝÊ±ÐÞ¸Ä
+	//__tunnel_dst_set(raw_cpu_ptr(t->dst_cache), dst, saddr);
+	__tunnel_dst_set((t->dst_cache), dst, saddr);
 }
 
 static void tunnel_dst_reset(struct ip_tunnel *t)
@@ -108,7 +112,8 @@ static struct rtable *tunnel_rtable_get(struct ip_tunnel *t,
 	struct dst_entry *dst;
 
 	rcu_read_lock();
-	idst = raw_cpu_ptr(t->dst_cache);
+//ÔÝÊ±×¢ÊÍ
+//	idst = raw_cpu_ptr(t->dst_cache);
 	dst = rcu_dereference(idst->dst);
 	if (dst && !atomic_inc_not_zero(&dst->__refcnt))
 		dst = NULL;
@@ -160,7 +165,8 @@ struct ip_tunnel *ip_tunnel_lookup(struct ip_tunnel_net *itn,
 
 	hash = ip_tunnel_hash(key, remote);
 	head = &itn->tunnels[hash];
-
+//ÔÝÊ±×¢ÊÍ
+#if 0
 	hlist_for_each_entry_rcu(t, head, hash_node) {
 		if (local != t->parms.iph.saddr ||
 		    remote != t->parms.iph.daddr ||
@@ -190,10 +196,11 @@ struct ip_tunnel *ip_tunnel_lookup(struct ip_tunnel_net *itn,
 		else if (!cand)
 			cand = t;
 	}
-
+#endif
 	hash = ip_tunnel_hash(key, 0);
 	head = &itn->tunnels[hash];
-
+//ÔÝÊ±×¢ÊÍ
+#if 0
 	hlist_for_each_entry_rcu(t, head, hash_node) {
 		if ((local != t->parms.iph.saddr || t->parms.iph.daddr != 0) &&
 		    (local != t->parms.iph.daddr || !ipv4_is_multicast(local)))
@@ -210,10 +217,11 @@ struct ip_tunnel *ip_tunnel_lookup(struct ip_tunnel_net *itn,
 		else if (!cand)
 			cand = t;
 	}
-
+#endif
 	if (flags & TUNNEL_NO_KEY)
 		goto skip_key_lookup;
-
+//ÔÝÊ±×¢ÊÍ
+#if 0
 	hlist_for_each_entry_rcu(t, head, hash_node) {
 		if (t->parms.i_key != key ||
 		    t->parms.iph.saddr != 0 ||
@@ -226,7 +234,7 @@ struct ip_tunnel *ip_tunnel_lookup(struct ip_tunnel_net *itn,
 		else if (!cand)
 			cand = t;
 	}
-
+#endif
 skip_key_lookup:
 	if (cand)
 		return cand;
@@ -281,7 +289,8 @@ static struct ip_tunnel *ip_tunnel_find(struct ip_tunnel_net *itn,
 	int link = parms->link;
 	struct ip_tunnel *t = NULL;
 	struct hlist_head *head = ip_bucket(itn, parms);
-
+//ÔÝÊ±×¢ÊÍ
+#if 0
 	hlist_for_each_entry_rcu(t, head, hash_node) {
 		if (local == t->parms.iph.saddr &&
 		    remote == t->parms.iph.daddr &&
@@ -290,6 +299,7 @@ static struct ip_tunnel *ip_tunnel_find(struct ip_tunnel_net *itn,
 		    ip_tunnel_key_match(&t->parms, flags, key))
 			break;
 	}
+#endif
 	return t;
 }
 
@@ -314,7 +324,8 @@ static struct net_device *__ip_tunnel_create(struct net *net,
 	}
 
 	ASSERT_RTNL();
-	dev = alloc_netdev(ops->priv_size, name, NET_NAME_UNKNOWN, ops->setup);
+//ÔÝÊ±×¢ÊÍ
+//	dev = alloc_netdev(ops->priv_size, name, NET_NAME_UNKNOWN, ops->setup);
 	if (!dev) {
 		err = -ENOMEM;
 		goto failed;
@@ -452,12 +463,12 @@ int ip_tunnel_rcv(struct ip_tunnel *tunnel, struct sk_buff *skb,
 	}
 
 	skb_reset_network_header(skb);
-
-	err = IP_ECN_decapsulate(iph, skb);
+//ÔÝÊ±×¢ÊÍ
+//	err = IP_ECN_decapsulate(iph, skb);
 	if (unlikely(err)) {
-		if (log_ecn_error)
-			net_info_ratelimited("non-ECT from %pI4 with TOS=%#x\n",
-					&iph->saddr, iph->tos);
+	//	if (log_ecn_error)
+	//		net_info_ratelimited("non-ECT from %pI4 with TOS=%#x\n",
+	//				&iph->saddr, iph->tos);
 		if (err > 1) {
 			++tunnel->dev->stats.rx_frame_errors;
 			++tunnel->dev->stats.rx_errors;
@@ -465,13 +476,13 @@ int ip_tunnel_rcv(struct ip_tunnel *tunnel, struct sk_buff *skb,
 		}
 	}
 
-	tstats = this_cpu_ptr(tunnel->dev->tstats);
+	//tstats = this_cpu_ptr(tunnel->dev->tstats);
 	u64_stats_update_begin(&tstats->syncp);
 	tstats->rx_packets++;
 	tstats->rx_bytes += skb->len;
 	u64_stats_update_end(&tstats->syncp);
 
-	skb_scrub_packet(skb, !net_eq(tunnel->net, dev_net(tunnel->dev)));
+//	skb_scrub_packet(skb, !net_eq(tunnel->net, dev_net(tunnel->dev)));
 
 	if (tunnel->dev->type == ARPHRD_ETHER) {
 		skb->protocol = eth_type_trans(skb, tunnel->dev);
@@ -533,16 +544,16 @@ static int fou_build_header(struct sk_buff *skb, struct ip_tunnel_encap *e,
 	__be16 sport;
 	bool csum = !!(e->flags & TUNNEL_ENCAP_FLAG_CSUM);
 	int type = csum ? SKB_GSO_UDP_TUNNEL_CSUM : SKB_GSO_UDP_TUNNEL;
-
-	skb = iptunnel_handle_offloads(skb, csum, type);
+//ÔÝÊ±×¢ÊÍ
+//	skb = iptunnel_handle_offloads(skb, csum, type);
 
 	if (IS_ERR(skb))
 		return PTR_ERR(skb);
 
 	/* Get length and hash before making space in skb */
-
-	sport = e->sport ? : udp_flow_src_port(dev_net(skb->dev),
-					       skb, 0, 0, false);
+//ÔÝÊ±×¢ÊÍ
+	//sport = e->sport ? : udp_flow_src_port(dev_net(skb->dev),
+	//				       skb, 0, 0, false);
 
 	skb_push(skb, hdr_len);
 
@@ -562,8 +573,9 @@ static int fou_build_header(struct sk_buff *skb, struct ip_tunnel_encap *e,
 	uh->source = sport;
 	uh->len = htons(skb->len);
 	uh->check = 0;
-	udp_set_csum(!(e->flags & TUNNEL_ENCAP_FLAG_CSUM), skb,
-		     fl4->saddr, fl4->daddr, skb->len);
+//ÔÝÊ±×¢ÊÍ
+	//udp_set_csum(!(e->flags & TUNNEL_ENCAP_FLAG_CSUM), skb,
+	//	     fl4->saddr, fl4->daddr, skb->len);
 
 	*protocol = IPPROTO_UDP;
 
@@ -599,9 +611,9 @@ static int tnl_update_pmtu(struct net_device *dev, struct sk_buff *skb,
 					- sizeof(struct iphdr) - tunnel->hlen;
 	else
 		mtu = skb_dst(skb) ? dst_mtu(skb_dst(skb)) : dev->mtu;
-
-	if (skb_dst(skb))
-		skb_dst(skb)->ops->update_pmtu(skb_dst(skb), NULL, skb, mtu);
+//ÔÝÊ±×¢ÊÍ
+	//if (skb_dst(skb))
+	//	skb_dst(skb)->ops->update_pmtu(skb_dst(skb), NULL, skb, mtu);
 
 	if (skb->protocol == htons(ETH_P_IP)) {
 		if (!skb_is_gso(skb) &&
@@ -612,7 +624,8 @@ static int tnl_update_pmtu(struct net_device *dev, struct sk_buff *skb,
 			return -E2BIG;
 		}
 	}
-#if IS_ENABLED(CONFIG_IPV6)
+#if 0
+//#if IS_ENABLED(CONFIG_IPV6)
 	else if (skb->protocol == htons(ETH_P_IPV6)) {
 		struct rt6_info *rt6 = (struct rt6_info *)skb_dst(skb);
 
@@ -649,8 +662,8 @@ void ip_tunnel_xmit(struct sk_buff *skb, struct net_device *dev,
 	__be32 dst;
 	int err;
 	bool connected;
-
-	inner_iph = (const struct iphdr *)skb_inner_network_header(skb);
+//ÔÝÊ±×¢ÊÍ
+	//inner_iph = (const struct iphdr *)skb_inner_network_header(skb);
 	connected = (tunnel->parms.iph.daddr != 0);
 
 	dst = tnl_params->daddr;
@@ -664,9 +677,11 @@ void ip_tunnel_xmit(struct sk_buff *skb, struct net_device *dev,
 
 		if (skb->protocol == htons(ETH_P_IP)) {
 			rt = skb_rtable(skb);
-			dst = rt_nexthop(rt, inner_iph->daddr);
+//ÔÝÊ±×¢ÊÍ
+		//	dst = rt_nexthop(rt, inner_iph->daddr);
 		}
-#if IS_ENABLED(CONFIG_IPV6)
+#if 0
+//#if IS_ENABLED(CONFIG_IPV6)
 		else if (skb->protocol == htons(ETH_P_IPV6)) {
 			const struct in6_addr *addr6;
 			struct neighbour *neigh;
@@ -761,7 +776,8 @@ void ip_tunnel_xmit(struct sk_buff *skb, struct net_device *dev,
 	if (ttl == 0) {
 		if (skb->protocol == htons(ETH_P_IP))
 			ttl = inner_iph->ttl;
-#if IS_ENABLED(CONFIG_IPV6)
+#if 0
+//#if IS_ENABLED(CONFIG_IPV6)
 		else if (skb->protocol == htons(ETH_P_IPV6))
 			ttl = ((const struct ipv6hdr *)inner_iph)->hop_limit;
 #endif
@@ -784,14 +800,16 @@ void ip_tunnel_xmit(struct sk_buff *skb, struct net_device *dev,
 		kfree_skb(skb);
 		return;
 	}
-
-	err = iptunnel_xmit(skb->sk, rt, skb, fl4.saddr, fl4.daddr, protocol,
-			    tos, ttl, df, !net_eq(tunnel->net, dev_net(dev)));
-	iptunnel_xmit_stats(err, &dev->stats, dev->tstats);
+//ÔÝÊ±×¢ÊÍ
+//	err = iptunnel_xmit(skb->sk, rt, skb, fl4.saddr, fl4.daddr, protocol,
+//			    tos, ttl, df, !net_eq(tunnel->net, dev_net(dev)));
+//ÔÝÊ±×¢ÊÍ
+	//iptunnel_xmit_stats(err, &dev->stats, dev->tstats);
 
 	return;
 
-#if IS_ENABLED(CONFIG_IPV6)
+//#if IS_ENABLED(CONFIG_IPV6)
+#if 0
 tx_error_icmp:
 	dst_link_failure(skb);
 #endif
@@ -855,8 +873,9 @@ int ip_tunnel_ioctl(struct net_device *dev, struct ip_tunnel_parm *p, int cmd)
 	case SIOCADDTUNNEL:
 	case SIOCCHGTUNNEL:
 		err = -EPERM;
-		if (!ns_capable(net->user_ns, CAP_NET_ADMIN))
-			goto done;
+//ÔÝÊ±×¢ÊÍ
+//		if (!ns_capable(net->user_ns, CAP_NET_ADMIN))
+//			goto done;
 		if (p->iph.ttl)
 			p->iph.frag_off |= htons(IP_DF);
 		if (!(p->i_flags & VTI_ISVTI)) {
@@ -871,7 +890,8 @@ int ip_tunnel_ioctl(struct net_device *dev, struct ip_tunnel_parm *p, int cmd)
 		if (cmd == SIOCADDTUNNEL) {
 			if (!t) {
 				t = ip_tunnel_create(net, itn, p);
-				err = PTR_ERR_OR_ZERO(t);
+//ÔÝÊ±×¢ÊÍ
+				//err = PTR_ERR_OR_ZERO(t);
 				break;
 			}
 
@@ -911,8 +931,9 @@ int ip_tunnel_ioctl(struct net_device *dev, struct ip_tunnel_parm *p, int cmd)
 
 	case SIOCDELTUNNEL:
 		err = -EPERM;
-		if (!ns_capable(net->user_ns, CAP_NET_ADMIN))
-			goto done;
+//ÔÝÊ±×¢ÊÍ
+	//	if (!ns_capable(net->user_ns, CAP_NET_ADMIN))
+	//		goto done;
 
 		if (dev == itn->fb_tunnel_dev) {
 			err = -ENOENT;
@@ -1004,8 +1025,9 @@ int ip_tunnel_init_net(struct net *net, int ip_tnl_net_id,
 		ip_tunnel_add(itn, netdev_priv(itn->fb_tunnel_dev));
 	}
 	rtnl_unlock();
-
-	return PTR_ERR_OR_ZERO(itn->fb_tunnel_dev);
+//ÔÝÊ±×¢ÊÍ tihuan
+	//return PTR_ERR_OR_ZERO(itn->fb_tunnel_dev);
+	return 0;
 }
 EXPORT_SYMBOL_GPL(ip_tunnel_init_net);
 
@@ -1024,8 +1046,8 @@ static void ip_tunnel_destroy(struct ip_tunnel_net *itn, struct list_head *head,
 		struct ip_tunnel *t;
 		struct hlist_node *n;
 		struct hlist_head *thead = &itn->tunnels[h];
-
-		hlist_for_each_entry_safe(t, n, thead, hash_node)
+//ÔÝÊ±×¢ÊÍ
+//		hlist_for_each_entry_safe(t, n, thead, hash_node)
 			/* If dev is in the same netns, it has already
 			 * been added to the list by the previous loop.
 			 */
@@ -1065,9 +1087,9 @@ int ip_tunnel_newlink(struct net_device *dev, struct nlattr *tb[],
 	err = register_netdevice(dev);
 	if (err)
 		goto out;
-
-	if (dev->type == ARPHRD_ETHER && !tb[IFLA_ADDRESS])
-		eth_hw_addr_random(dev);
+//ÔÝÊ±×¢ÊÍ
+//	if (dev->type == ARPHRD_ETHER && !tb[IFLA_ADDRESS])
+//		eth_hw_addr_random(dev);
 
 	mtu = ip_tunnel_bind_dev(dev);
 	if (!tb[IFLA_MTU])
@@ -1125,7 +1147,8 @@ int ip_tunnel_init(struct net_device *dev)
 	int err;
 
 	dev->destructor	= ip_tunnel_dev_free;
-	dev->tstats = netdev_alloc_pcpu_stats(struct pcpu_sw_netstats);
+//ÔÝÊ±×¢ÊÍ
+	//dev->tstats = netdev_alloc_pcpu_stats(struct pcpu_sw_netstats);
 	if (!dev->tstats)
 		return -ENOMEM;
 

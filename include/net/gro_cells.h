@@ -71,8 +71,8 @@ static inline int gro_cell_poll(struct napi_struct *napi, int budget)
 static inline int gro_cells_init(struct gro_cells *gcells, struct net_device *dev)
 {
 	int i;
-
-	gcells->gro_cells_mask = roundup_pow_of_two(netif_get_num_default_rss_queues()) - 1;
+//ÔÝÊ±×¢ÊÍ
+//	gcells->gro_cells_mask = roundup_pow_of_two(netif_get_num_default_rss_queues()) - 1;
 	gcells->cells = kcalloc(gcells->gro_cells_mask + 1,
 				sizeof(struct gro_cell),
 				GFP_KERNEL);

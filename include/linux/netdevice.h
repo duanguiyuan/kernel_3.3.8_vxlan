@@ -1512,6 +1512,14 @@ struct packet_type {
 	void			*af_packet_priv;
 	struct list_head	list;
 };
+/* often modified stats are per cpu, other are shared (netdev->stats) */
+struct pcpu_sw_netstats {
+	u64     rx_packets;
+	u64     rx_bytes;
+	u64     tx_packets;
+	u64     tx_bytes;
+	struct u64_stats_sync   syncp;
+};
 
 #include <linux/notifier.h>
 
