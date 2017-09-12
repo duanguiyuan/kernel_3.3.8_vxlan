@@ -419,7 +419,7 @@ struct sk_buff {
 				data_len;
 	__u16			mac_len,
 				hdr_len;
-	__u8			ignore_df:1;
+
 	union {
 		__wsum		csum;
 		struct {
@@ -500,6 +500,8 @@ struct sk_buff {
 				*data;
 	unsigned int		truesize;
 	atomic_t		users;
+	__u8			ignore_df:1;
+//	__u16			ttt;
 };
 
 #ifdef __KERNEL__
