@@ -887,8 +887,8 @@ int ip_tunnel_ioctl(struct net_device *dev, struct ip_tunnel_parm *p, int cmd)
 		if (cmd == SIOCADDTUNNEL) {
 			if (!t) {
 				t = ip_tunnel_create(net, itn, p);
-//ÔÝÊ±×¢ÊÍ
-				//err = PTR_ERR_OR_ZERO(t);
+/* ÐÞ¸Ä */
+				err = PTR_ERR(t);
 				break;
 			}
 
@@ -1022,9 +1022,8 @@ int ip_tunnel_init_net(struct net *net, int ip_tnl_net_id,
 		ip_tunnel_add(itn, netdev_priv(itn->fb_tunnel_dev));
 	}
 	rtnl_unlock();
-//ÔÝÊ±×¢ÊÍ tihuan
-	//return PTR_ERR_OR_ZERO(itn->fb_tunnel_dev);
-	return 0;
+/*ÐÞ¸Ä */
+	return PTR_ERR(itn->fb_tunnel_dev);
 }
 EXPORT_SYMBOL_GPL(ip_tunnel_init_net);
 
