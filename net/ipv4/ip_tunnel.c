@@ -319,7 +319,7 @@ static struct net_device *__ip_tunnel_create(struct net *net,
 	}
 
 	ASSERT_RTNL();
-//ÔÝÊ±×¢ÊÍ
+
 /* ÐÞ¸Ä */
 	//dev = alloc_netdev(ops->priv_size, name, NET_NAME_UNKNOWN, ops->setup);
 	dev = alloc_netdev(ops->priv_size, name, ops->setup);
@@ -549,8 +549,8 @@ static int fou_build_header(struct sk_buff *skb, struct ip_tunnel_encap *e,
 
 	/* Get length and hash before making space in skb */
 //ÔÝÊ±×¢ÊÍ
-	//sport = e->sport ? : udp_flow_src_port(dev_net(skb->dev),
-	//				       skb, 0, 0, false);
+	sport = e->sport ? : udp_flow_src_port(dev_net(skb->dev),
+					       skb, 0, 0, false);
 
 	skb_push(skb, hdr_len);
 
@@ -570,9 +570,9 @@ static int fou_build_header(struct sk_buff *skb, struct ip_tunnel_encap *e,
 	uh->source = sport;
 	uh->len = htons(skb->len);
 	uh->check = 0;
-//ÔÝÊ±×¢ÊÍ
-	//udp_set_csum(!(e->flags & TUNNEL_ENCAP_FLAG_CSUM), skb,
-	//	     fl4->saddr, fl4->daddr, skb->len);
+
+	udp_set_csum(!(e->flags & TUNNEL_ENCAP_FLAG_CSUM), skb,
+		     fl4->saddr, fl4->daddr, skb->len);
 
 	*protocol = IPPROTO_UDP;
 
@@ -608,10 +608,10 @@ static int tnl_update_pmtu(struct net_device *dev, struct sk_buff *skb,
 					- sizeof(struct iphdr) - tunnel->hlen;
 	else
 		mtu = skb_dst(skb) ? dst_mtu(skb_dst(skb)) : dev->mtu;
-//ÔÝÊ±×¢ÊÍ
-	//if (skb_dst(skb))
-	//	skb_dst(skb)->ops->update_pmtu(skb_dst(skb), NULL, skb, mtu);
-
+/* ÐÞ¸Ä tihuan */
+	if (skb_dst(skb))
+		skb_dst(skb)->ops->update_pmtu(skb_dst(skb),mtu);
+		//skb_dst(skb)->ops->update_pmtu(skb_dst(skb), NULL, skb, mtu);
 	if (skb->protocol == htons(ETH_P_IP)) {
 		if (!skb_is_gso(skb) &&
 		    (inner_iph->frag_off & htons(IP_DF)) &&
