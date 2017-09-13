@@ -101,6 +101,9 @@ struct net {
 	struct netns_xfrm	xfrm;
 #endif
 	struct netns_ipvs	*ipvs;
+/* begin: add by duanguiyuan */
+	struct user_namespace   *user_ns;	/* Owning user namespace */
+/* end: add by duanguiyuan */
 };
 
 

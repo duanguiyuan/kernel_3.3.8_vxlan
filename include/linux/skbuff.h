@@ -500,8 +500,11 @@ struct sk_buff {
 				*data;
 	unsigned int		truesize;
 	atomic_t		users;
+/* begin: add by duanguiyuan */
 	__u8			ignore_df:1;
+	__u16			inner_network_header;
 //	__u16			ttt;
+/* begin: add by duanguiyuan */
 };
 
 #ifdef __KERNEL__
@@ -1389,7 +1392,10 @@ static inline void skb_reset_mac_len(struct sk_buff *skb)
 {
 	skb->mac_len = skb->network_header - skb->mac_header;
 }
-
+static inline unsigned char *skb_inner_network_header(const struct sk_buff *skb)
+{
+	return skb->head + skb->inner_network_header;
+}
 #ifdef NET_SKBUFF_DATA_USES_OFFSET
 static inline unsigned char *skb_transport_header(const struct sk_buff *skb)
 {

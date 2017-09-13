@@ -65,7 +65,6 @@
 #include <net/ip6_fib.h>
 #include <net/ip6_route.h>
 #endif
-
 static unsigned int ip_tunnel_hash(__be32 key, __be32 remote)
 {
 	return hash_32((__force u32)key ^ (__force u32)remote,
@@ -659,8 +658,8 @@ void ip_tunnel_xmit(struct sk_buff *skb, struct net_device *dev,
 	__be32 dst;
 	int err;
 	bool connected;
-//ÔÝÊ±×¢ÊÍ
-	//inner_iph = (const struct iphdr *)skb_inner_network_header(skb);
+
+	inner_iph = (const struct iphdr *)skb_inner_network_header(skb);
 	connected = (tunnel->parms.iph.daddr != 0);
 
 	dst = tnl_params->daddr;
@@ -674,8 +673,8 @@ void ip_tunnel_xmit(struct sk_buff *skb, struct net_device *dev,
 
 		if (skb->protocol == htons(ETH_P_IP)) {
 			rt = skb_rtable(skb);
-//ÔÝÊ±×¢ÊÍ
-		//	dst = rt_nexthop(rt, inner_iph->daddr);
+
+			dst = rt_nexthop(rt, inner_iph->daddr);
 		}
 #if 0
 //#if IS_ENABLED(CONFIG_IPV6)
@@ -870,9 +869,9 @@ int ip_tunnel_ioctl(struct net_device *dev, struct ip_tunnel_parm *p, int cmd)
 	case SIOCADDTUNNEL:
 	case SIOCCHGTUNNEL:
 		err = -EPERM;
-//ÔÝÊ±×¢ÊÍ
-//		if (!ns_capable(net->user_ns, CAP_NET_ADMIN))
-//			goto done;
+//×¢ÊÍ
+		if (!ns_capable(net->user_ns, CAP_NET_ADMIN))
+			goto done;
 		if (p->iph.ttl)
 			p->iph.frag_off |= htons(IP_DF);
 		if (!(p->i_flags & VTI_ISVTI)) {
@@ -928,9 +927,9 @@ int ip_tunnel_ioctl(struct net_device *dev, struct ip_tunnel_parm *p, int cmd)
 
 	case SIOCDELTUNNEL:
 		err = -EPERM;
-//ÔÝÊ±×¢ÊÍ
-	//	if (!ns_capable(net->user_ns, CAP_NET_ADMIN))
-	//		goto done;
+//×¢ÊÍ
+		if (!ns_capable(net->user_ns, CAP_NET_ADMIN))
+			goto done;
 
 		if (dev == itn->fb_tunnel_dev) {
 			err = -ENOENT;
