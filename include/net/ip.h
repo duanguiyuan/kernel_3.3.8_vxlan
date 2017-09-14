@@ -265,7 +265,7 @@ int ip_dont_fragment(struct sock *sk, struct dst_entry *dst)
 }
 
 extern void __ip_select_ident(struct iphdr *iph, struct dst_entry *dst, int more);
-
+extern void __ip_select_ident_vxlan(struct iphdr *iph, int segs);
 static inline void ip_select_ident(struct iphdr *iph, struct dst_entry *dst, struct sock *sk)
 {
 	if (iph->frag_off & htons(IP_DF)) {

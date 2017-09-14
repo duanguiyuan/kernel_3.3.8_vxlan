@@ -62,6 +62,8 @@
  *		2 of the License, or (at your option) any later version.
  */
 
+#define pr_fmt(fmt) "IPv4: " fmt
+
 #include <linux/module.h>
 #include <asm/uaccess.h>
 #include <asm/system.h>
@@ -697,6 +699,13 @@ static int rt_may_expire(struct rtable *rth, unsigned long tmo1, unsigned long t
 out:	return ret;
 }
 
+#define IP_IDENTS_SZ 2048u
+struct ip_ident_bucket {
+	atomic_t	id;
+	u32		stamp32;
+};
+
+static struct ip_ident_bucket *ip_idents __read_mostly;
 /* Bits of score are:
  * 31: very valuable
  * 30: not quite useless
@@ -717,6 +726,38 @@ static inline u32 rt_score(struct rtable *rt)
 
 	return score;
 }
+/* In order to protect privacy, we add a perturbation to identifiers
+ * if one generator is seldom used. This makes hard for an attacker
+ * to infer how many packets were sent between two points in time.
+ */
+u32 ip_idents_reserve(u32 hash, int segs)
+{
+	struct ip_ident_bucket *bucket = ip_idents + hash % IP_IDENTS_SZ;
+	u32 old = ACCESS_ONCE(bucket->stamp32);
+	u32 now = (u32)jiffies;
+	u32 delta = 0;
+
+	if (old != now && cmpxchg(&bucket->stamp32, old, now) == old)
+		delta = prandom_u32_max(now - old);
+
+	return atomic_add_return(segs + delta, &bucket->id) - segs;
+}
+EXPORT_SYMBOL(ip_idents_reserve);
+void __ip_select_ident_vxlan(struct iphdr *iph, int segs)
+{
+	static u32 ip_idents_hashrnd __read_mostly;
+	u32 hash, id;
+//ÔÝÊ±×¢ÊÍ
+	//net_get_random_once(&ip_idents_hashrnd, sizeof(ip_idents_hashrnd));
+
+	hash = jhash_3words((__force u32)iph->daddr,
+			    (__force u32)iph->saddr,
+			    iph->protocol,
+			    ip_idents_hashrnd);
+	id = ip_idents_reserve(hash, segs);
+	iph->id = htons(id);
+}
+EXPORT_SYMBOL(__ip_select_ident_vxlan);
 
 static inline bool rt_caching(const struct net *net)
 {

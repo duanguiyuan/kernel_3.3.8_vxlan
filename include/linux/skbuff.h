@@ -506,6 +506,9 @@ struct sk_buff {
 	__u16			inner_transport_header;
 	__u16			inner_network_header;
 	__u16			inner_mac_header;
+	__u32			hash;
+	__u8			l4_hash:1;
+	__u8			sw_hash:1;
 //	__u16			ttt;
 /* begin: add by duanguiyuan */
 };
@@ -654,6 +657,12 @@ static inline __u32 skb_get_rxhash(struct sk_buff *skb)
 	return skb->rxhash;
 }
 
+static inline void skb_clear_hash(struct sk_buff *skb)
+{
+	skb->hash = 0;
+	skb->sw_hash = 0;
+	skb->l4_hash = 0;
+}
 #ifdef NET_SKBUFF_DATA_USES_OFFSET
 static inline unsigned char *skb_end_pointer(const struct sk_buff *skb)
 {

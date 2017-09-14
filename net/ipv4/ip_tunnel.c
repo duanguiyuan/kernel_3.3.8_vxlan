@@ -67,6 +67,46 @@
 #endif
 /************************************ ip tunnel core ************************************************/
 /************************************ ip tunnel core ************************************************/
+/* line number 49*/
+int iptunnel_xmit(struct sock *sk, struct rtable *rt, struct sk_buff *skb,
+		  __be32 src, __be32 dst, __u8 proto,
+		  __u8 tos, __u8 ttl, __be16 df, bool xnet)
+{
+	int pkt_len = skb->len;
+	struct iphdr *iph;
+	int err;
+
+	skb_scrub_packet(skb, xnet);
+
+	skb_clear_hash(skb);
+	skb_dst_set(skb, &rt->dst);
+	memset(IPCB(skb), 0, sizeof(*IPCB(skb)));
+
+	/* Push down and install the IP header. */
+	skb_push(skb, sizeof(struct iphdr));
+	skb_reset_network_header(skb);
+
+	iph = ip_hdr(skb);
+
+	iph->version	=	4;
+	iph->ihl	=	sizeof(struct iphdr) >> 2;
+	iph->frag_off	=	df;
+	iph->protocol	=	proto;
+	iph->tos	=	tos;
+	iph->daddr	=	dst;
+	iph->saddr	=	src;
+	iph->ttl	=	ttl;
+	__ip_select_ident_vxlan(iph, skb_shinfo(skb)->gso_segs ?: 1);
+
+	/* ÐÞ¸Ä tihuan*/
+	//err = ip_local_out_sk(sk, skb);
+	err = ip_local_out(skb);
+	if (unlikely(net_xmit_eval(err)))
+		pkt_len = 0;
+	return pkt_len;
+}
+EXPORT_SYMBOL_GPL(iptunnel_xmit);
+/* line number 120*/
 struct sk_buff *iptunnel_handle_offloads(struct sk_buff *skb,
 					 bool csum_help,
 					 int gso_type_mask)
@@ -132,7 +172,7 @@ static void __tunnel_dst_set(struct ip_tunnel_dst *idst,
 static noinline void tunnel_dst_set(struct ip_tunnel *t,
 			   struct dst_entry *dst, __be32 saddr)
 {
-	//ÔÝÊ±ÐÞ¸Ä
+	//ÔÝÊ±ÐÞ¸Ä 7
 	//__tunnel_dst_set(raw_cpu_ptr(t->dst_cache), dst, saddr);
 	__tunnel_dst_set((t->dst_cache), dst, saddr);
 }
@@ -158,7 +198,7 @@ static struct rtable *tunnel_rtable_get(struct ip_tunnel *t,
 	struct dst_entry *dst;
 
 	rcu_read_lock();
-//ÔÝÊ±×¢ÊÍ
+//ÔÝÊ±×¢ÊÍ 6
 //	idst = raw_cpu_ptr(t->dst_cache);
 	dst = rcu_dereference(idst->dst);
 	if (dst && !atomic_inc_not_zero(&dst->__refcnt))
@@ -518,7 +558,7 @@ int ip_tunnel_rcv(struct ip_tunnel *tunnel, struct sk_buff *skb,
 			goto drop;
 		}
 	}
-
+// 5
 	//tstats = this_cpu_ptr(tunnel->dev->tstats);
 	u64_stats_update_begin(&tstats->syncp);
 	tstats->rx_packets++;
@@ -705,7 +745,7 @@ void ip_tunnel_xmit(struct sk_buff *skb, struct net_device *dev,
 	int err;
 	bool connected;
 
-	//inner_iph = (const struct iphdr *)skb_inner_network_header(skb);
+	inner_iph = (const struct iphdr *)skb_inner_network_header(skb);
 	connected = (tunnel->parms.iph.daddr != 0);
 
 	dst = tnl_params->daddr;
@@ -843,9 +883,9 @@ void ip_tunnel_xmit(struct sk_buff *skb, struct net_device *dev,
 		return;
 	}
 //ÔÝÊ±×¢ÊÍ
-//	err = iptunnel_xmit(skb->sk, rt, skb, fl4.saddr, fl4.daddr, protocol,
-//			    tos, ttl, df, !net_eq(tunnel->net, dev_net(dev)));
-//ÔÝÊ±×¢ÊÍ
+	err = iptunnel_xmit(skb->sk, rt, skb, fl4.saddr, fl4.daddr, protocol,
+			    tos, ttl, df, !net_eq(tunnel->net, dev_net(dev)));
+//ÔÝÊ±×¢ÊÍ 4
 	//iptunnel_xmit_stats(err, &dev->stats, dev->tstats);
 
 	return;
@@ -915,7 +955,6 @@ int ip_tunnel_ioctl(struct net_device *dev, struct ip_tunnel_parm *p, int cmd)
 	case SIOCADDTUNNEL:
 	case SIOCCHGTUNNEL:
 		err = -EPERM;
-//×¢ÊÍ
 		if (!ns_capable(net->user_ns, CAP_NET_ADMIN))
 			goto done;
 		if (p->iph.ttl)
@@ -973,7 +1012,6 @@ int ip_tunnel_ioctl(struct net_device *dev, struct ip_tunnel_parm *p, int cmd)
 
 	case SIOCDELTUNNEL:
 		err = -EPERM;
-//×¢ÊÍ
 		if (!ns_capable(net->user_ns, CAP_NET_ADMIN))
 			goto done;
 
@@ -1087,7 +1125,7 @@ static void ip_tunnel_destroy(struct ip_tunnel_net *itn, struct list_head *head,
 		struct ip_tunnel *t;
 		struct hlist_node *n;
 		struct hlist_head *thead = &itn->tunnels[h];
-//ÔÝÊ±×¢ÊÍ
+//ÔÝÊ±×¢ÊÍ 3
 //		hlist_for_each_entry_safe(t, n, thead, hash_node)
 			/* If dev is in the same netns, it has already
 			 * been added to the list by the previous loop.
@@ -1128,8 +1166,9 @@ int ip_tunnel_newlink(struct net_device *dev, struct nlattr *tb[],
 	err = register_netdevice(dev);
 	if (err)
 		goto out;
-//ÔÝÊ±×¢ÊÍ
-//	if (dev->type == ARPHRD_ETHER && !tb[IFLA_ADDRESS])
+/* ÐÞ¸Ä */
+	if (dev->type == ARPHRD_ETHER && !tb[IFLA_ADDRESS])
+		dev_hw_addr_random(dev,dev->dev_addr);
 //		eth_hw_addr_random(dev);
 
 	mtu = ip_tunnel_bind_dev(dev);
@@ -1188,7 +1227,7 @@ int ip_tunnel_init(struct net_device *dev)
 	int err;
 
 	dev->destructor	= ip_tunnel_dev_free;
-//ÔÝÊ±×¢ÊÍ
+//ÔÝÊ±×¢ÊÍ 1
 	//dev->tstats = netdev_alloc_pcpu_stats(struct pcpu_sw_netstats);
 	if (!dev->tstats)
 		return -ENOMEM;
