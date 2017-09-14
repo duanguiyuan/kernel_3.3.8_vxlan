@@ -1125,8 +1125,8 @@ static void ip_tunnel_destroy(struct ip_tunnel_net *itn, struct list_head *head,
 		struct ip_tunnel *t;
 		struct hlist_node *n;
 		struct hlist_head *thead = &itn->tunnels[h];
-//ÔİÊ±×¢ÊÍ 3
-//		hlist_for_each_entry_safe(t, n, thead, hash_node)
+/* ĞÂÔö */
+		hlist_for_each_entry_safe_vxlan(t, n, thead, hash_node)
 			/* If dev is in the same netns, it has already
 			 * been added to the list by the previous loop.
 			 */

@@ -720,5 +720,9 @@ static inline void hlist_move_list(struct hlist_head *old,
 	     pos && ({ n = pos->next; 1; }) && 				 \
 		({ tpos = hlist_entry(pos, typeof(*tpos), member); 1;}); \
 	     pos = n)
+#define hlist_for_each_entry_safe_vxlan(pos, n, head, member) 		\
+	for (pos = hlist_entry_safe((head)->first, typeof(*pos), member);\
+	     pos && ({ n = pos->member.next; 1; });			\
+	     pos = hlist_entry_safe(n, typeof(*pos), member))
 
 #endif
