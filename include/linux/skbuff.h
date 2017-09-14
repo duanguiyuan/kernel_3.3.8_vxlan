@@ -501,8 +501,11 @@ struct sk_buff {
 	unsigned int		truesize;
 	atomic_t		users;
 /* begin: add by duanguiyuan */
+	__u8			encapsulation:1;
 	__u8			ignore_df:1;
+	__u16			inner_transport_header;
 	__u16			inner_network_header;
+	__u16			inner_mac_header;
 //	__u16			ttt;
 /* begin: add by duanguiyuan */
 };
@@ -774,6 +777,16 @@ static inline int skb_cloned(const struct sk_buff *skb)
 {
 	return skb->cloned &&
 	       (atomic_read(&skb_shinfo(skb)->dataref) & SKB_DATAREF_MASK) != 1;
+}
+
+static inline int skb_unclone(struct sk_buff *skb, gfp_t pri)
+{
+	might_sleep_if(pri & __GFP_WAIT);
+
+	if (skb_cloned(skb))
+		return pskb_expand_head(skb, 0, 0, pri);
+
+	return 0;
 }
 
 /**
@@ -1388,6 +1401,16 @@ static inline void skb_reserve(struct sk_buff *skb, int len)
 	skb->tail += len;
 }
 
+static inline void skb_reset_inner_headers(struct sk_buff *skb)
+{
+	//skb->inner_mac_header = skb->mac_header;
+	//skb->inner_network_header = skb->network_header;
+	//skb->inner_transport_header = skb->transport_header;
+/* 偏移量方式 改为指针方式 */
+	skb->inner_mac_header = skb->data - skb->head;
+	skb->inner_network_header = skb->data - skb->head;
+	skb->inner_transport_header = skb->data - skb->head;
+}
 static inline void skb_reset_mac_len(struct sk_buff *skb)
 {
 	skb->mac_len = skb->network_header - skb->mac_header;

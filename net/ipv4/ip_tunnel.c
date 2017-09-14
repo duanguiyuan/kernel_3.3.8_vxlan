@@ -65,6 +65,53 @@
 #include <net/ip6_fib.h>
 #include <net/ip6_route.h>
 #endif
+/************************************ ip tunnel core ************************************************/
+/************************************ ip tunnel core ************************************************/
+struct sk_buff *iptunnel_handle_offloads(struct sk_buff *skb,
+					 bool csum_help,
+					 int gso_type_mask)
+{
+	int err;
+
+	if (likely(!skb->encapsulation)) {
+		skb_reset_inner_headers(skb);
+		skb->encapsulation = 1;
+	}
+
+	if (skb_is_gso(skb)) {
+		err = skb_unclone(skb, GFP_ATOMIC);
+		if (unlikely(err))
+			goto error;
+		skb_shinfo(skb)->gso_type |= gso_type_mask;
+		return skb;
+	}
+
+	/* If packet is not gso and we are resolving any partial checksum,
+	 * clear encapsulation flag. This allows setting CHECKSUM_PARTIAL
+	 * on the outer header without confusing devices that implement
+	 * NETIF_F_IP_CSUM with encapsulation.
+	 */
+	if (csum_help)
+		skb->encapsulation = 0;
+
+	if (skb->ip_summed == CHECKSUM_PARTIAL && csum_help) {
+		err = skb_checksum_help(skb);
+		if (unlikely(err))
+			goto error;
+	} else if (skb->ip_summed != CHECKSUM_PARTIAL)
+		skb->ip_summed = CHECKSUM_NONE;
+
+	return skb;
+error:
+	kfree_skb(skb);
+	return ERR_PTR(err);
+}
+EXPORT_SYMBOL_GPL(iptunnel_handle_offloads);
+
+
+/************************************ ip tunnel core ************************************************/
+/************************************ ip tunnel core ************************************************/
+
 static unsigned int ip_tunnel_hash(__be32 key, __be32 remote)
 {
 	return hash_32((__force u32)key ^ (__force u32)remote,
@@ -540,14 +587,13 @@ static int fou_build_header(struct sk_buff *skb, struct ip_tunnel_encap *e,
 	__be16 sport;
 	bool csum = !!(e->flags & TUNNEL_ENCAP_FLAG_CSUM);
 	int type = csum ? SKB_GSO_UDP_TUNNEL_CSUM : SKB_GSO_UDP_TUNNEL;
-//ÔÝÊ±×¢ÊÍ
-//	skb = iptunnel_handle_offloads(skb, csum, type);
+//×¢ÊÍ
+	skb = iptunnel_handle_offloads(skb, csum, type);
 
 	if (IS_ERR(skb))
 		return PTR_ERR(skb);
 
 	/* Get length and hash before making space in skb */
-//ÔÝÊ±×¢ÊÍ
 	sport = e->sport ? : udp_flow_src_port(dev_net(skb->dev),
 					       skb, 0, 0, false);
 
@@ -659,7 +705,7 @@ void ip_tunnel_xmit(struct sk_buff *skb, struct net_device *dev,
 	int err;
 	bool connected;
 
-	inner_iph = (const struct iphdr *)skb_inner_network_header(skb);
+	//inner_iph = (const struct iphdr *)skb_inner_network_header(skb);
 	connected = (tunnel->parms.iph.daddr != 0);
 
 	dst = tnl_params->daddr;
