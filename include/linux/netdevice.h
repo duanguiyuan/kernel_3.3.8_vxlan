@@ -1520,6 +1520,19 @@ struct pcpu_sw_netstats {
 	u64     tx_bytes;
 	struct u64_stats_sync   syncp;
 };
+#define netdev_alloc_pcpu_stats(type)				\
+({								\
+	typeof(type) __percpu *pcpu_stats = alloc_percpu(type); \
+	if (pcpu_stats)	{					\
+		int i;						\
+		for_each_possible_cpu(i) {			\
+			typeof(type) *stat;			\
+			stat = per_cpu_ptr(pcpu_stats, i);	\
+			u64_stats_init(&stat->syncp);		\
+		}						\
+	}							\
+	pcpu_stats;						\
+})
 
 #include <linux/notifier.h>
 

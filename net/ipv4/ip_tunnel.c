@@ -1228,7 +1228,7 @@ int ip_tunnel_init(struct net_device *dev)
 
 	dev->destructor	= ip_tunnel_dev_free;
 //ÔÝÊ±×¢ÊÍ 1
-	//dev->tstats = netdev_alloc_pcpu_stats(struct pcpu_sw_netstats);
+	dev->tstats = netdev_alloc_pcpu_stats(struct pcpu_sw_netstats);
 	if (!dev->tstats)
 		return -ENOMEM;
 
