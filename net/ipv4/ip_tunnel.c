@@ -556,8 +556,8 @@ int ip_tunnel_rcv(struct ip_tunnel *tunnel, struct sk_buff *skb,
 			goto drop;
 		}
 	}
-// 5
-	//tstats = this_cpu_ptr(tunnel->dev->tstats);
+	/* ÐÞ¸Ä *///struct pcpu_tstats __percpu	*tstats; /* tunnel stats */
+	tstats = this_cpu_ptr(tunnel->dev->tstats);
 	u64_stats_update_begin(&tstats->syncp);
 	tstats->rx_packets++;
 	tstats->rx_bytes += skb->len;
