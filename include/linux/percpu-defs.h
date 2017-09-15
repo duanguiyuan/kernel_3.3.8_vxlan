@@ -159,5 +159,14 @@
 #define EXPORT_PER_CPU_SYMBOL(var)
 #define EXPORT_PER_CPU_SYMBOL_GPL(var)
 #endif
+#ifdef CONFIG_SMP
+#define raw_cpu_ptr(ptr)						\
+({									\
+	__verify_pcpu_ptr(ptr);						\
+	arch_raw_cpu_ptr(ptr);						\
+})
 
+#else	/* CONFIG_SMP */
+#define raw_cpu_ptr(ptr)	per_cpu_ptr(ptr, 0)
+#endif	/* CONFIG_SMP */
 #endif /* _LINUX_PERCPU_DEFS_H */

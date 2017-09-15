@@ -172,9 +172,7 @@ static void __tunnel_dst_set(struct ip_tunnel_dst *idst,
 static noinline void tunnel_dst_set(struct ip_tunnel *t,
 			   struct dst_entry *dst, __be32 saddr)
 {
-	//ÔÝÊ±ÐÞ¸Ä 7
-	//__tunnel_dst_set(raw_cpu_ptr(t->dst_cache), dst, saddr);
-	__tunnel_dst_set((t->dst_cache), dst, saddr);
+	__tunnel_dst_set(raw_cpu_ptr(t->dst_cache), dst, saddr);
 }
 
 static void tunnel_dst_reset(struct ip_tunnel *t)
@@ -198,8 +196,8 @@ static struct rtable *tunnel_rtable_get(struct ip_tunnel *t,
 	struct dst_entry *dst;
 
 	rcu_read_lock();
-//ÔÝÊ±×¢ÊÍ 6
-//	idst = raw_cpu_ptr(t->dst_cache);
+//×¢ÊÍ 6
+	idst = raw_cpu_ptr(t->dst_cache);
 	dst = rcu_dereference(idst->dst);
 	if (dst && !atomic_inc_not_zero(&dst->__refcnt))
 		dst = NULL;
@@ -882,11 +880,9 @@ void ip_tunnel_xmit(struct sk_buff *skb, struct net_device *dev,
 		kfree_skb(skb);
 		return;
 	}
-//ÔÝÊ±×¢ÊÍ
 	err = iptunnel_xmit(skb->sk, rt, skb, fl4.saddr, fl4.daddr, protocol,
 			    tos, ttl, df, !net_eq(tunnel->net, dev_net(dev)));
-//ÔÝÊ±×¢ÊÍ 4
-	//iptunnel_xmit_stats(err, &dev->stats, dev->tstats);
+	iptunnel_xmit_stats(err, &dev->stats, dev->tstats);
 
 	return;
 
@@ -1227,7 +1223,6 @@ int ip_tunnel_init(struct net_device *dev)
 	int err;
 
 	dev->destructor	= ip_tunnel_dev_free;
-//ÔÝÊ±×¢ÊÍ 1
 	dev->tstats = netdev_alloc_pcpu_stats(struct pcpu_sw_netstats);
 	if (!dev->tstats)
 		return -ENOMEM;
