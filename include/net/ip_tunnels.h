@@ -118,7 +118,7 @@ struct ip_tunnel_net {
 };
 
 #ifdef CONFIG_INET
-
+#if 0
 int ip_tunnel_init(struct net_device *dev);
 void ip_tunnel_uninit(struct net_device *dev);
 void  ip_tunnel_dellink(struct net_device *dev, struct list_head *head);
@@ -174,9 +174,7 @@ static inline u8 ip_tunnel_ecn_encap(u8 tos, const struct iphdr *iph,
 }
 
 int iptunnel_pull_header(struct sk_buff *skb, int hdr_len, __be16 inner_proto);
-int iptunnel_xmit(struct sock *sk, struct rtable *rt, struct sk_buff *skb,
-		  __be32 src, __be32 dst, __u8 proto,
-		  __u8 tos, __u8 ttl, __be16 df, bool xnet);
+
 
 struct sk_buff *iptunnel_handle_offloads(struct sk_buff *skb, bool gre_csum,
 					 int gso_type_mask);
@@ -200,7 +198,12 @@ static inline void iptunnel_xmit_stats(int err,
 		err_stats->tx_dropped++;
 	}
 }
-
+#endif
+int iptunnel_xmit(struct sock *sk, struct rtable *rt, struct sk_buff *skb,
+		  __be32 src, __be32 dst, __u8 proto,
+		  __u8 tos, __u8 ttl, __be16 df, bool xnet);
+struct sk_buff *iptunnel_handle_offloads(struct sk_buff *skb, bool gre_csum,
+					 int gso_type_mask);
 #endif /* CONFIG_INET */
 
 #endif /* __NET_IP_TUNNELS_H */

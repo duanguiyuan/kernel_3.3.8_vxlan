@@ -100,12 +100,14 @@ int iptunnel_xmit(struct sock *sk, struct rtable *rt, struct sk_buff *skb,
 
 	/* 修改 tihuan*/
 	//err = ip_local_out_sk(sk, skb);
+	//  //调用ip层发送函数
 	err = ip_local_out(skb);
 	if (unlikely(net_xmit_eval(err)))
 		pkt_len = 0;
 	return pkt_len;
 }
 EXPORT_SYMBOL_GPL(iptunnel_xmit);
+
 /* line number 120*/
 struct sk_buff *iptunnel_handle_offloads(struct sk_buff *skb,
 					 bool csum_help,
@@ -148,7 +150,7 @@ error:
 }
 EXPORT_SYMBOL_GPL(iptunnel_handle_offloads);
 
-
+#if 0
 /************************************ ip tunnel core ************************************************/
 /************************************ ip tunnel core ************************************************/
 
@@ -382,6 +384,9 @@ static struct ip_tunnel *ip_tunnel_find(struct ip_tunnel_net *itn,
 	return t;
 }
 
+#ifdef IPV6
+#error ========================
+#endif
 static struct net_device *__ip_tunnel_create(struct net *net,
 					     const struct rtnl_link_ops *ops,
 					     struct ip_tunnel_parm *parms)
@@ -1215,14 +1220,21 @@ int ip_tunnel_changelink(struct net_device *dev, struct nlattr *tb[],
 	return 0;
 }
 EXPORT_SYMBOL_GPL(ip_tunnel_changelink);
-
+/*  
+	创建一个 网络设备 填充 struct net_device	
+	struct net_device
+	struct ip_tunnel
+	
+*/
 int ip_tunnel_init(struct net_device *dev)
 {
 	struct ip_tunnel *tunnel = netdev_priv(dev);
 	struct iphdr *iph = &tunnel->parms.iph;
 	int err;
 
+	/*  */
 	dev->destructor	= ip_tunnel_dev_free;
+	/* dev->tstats iptunnel 收发包才采集  */
 	dev->tstats = netdev_alloc_pcpu_stats(struct pcpu_sw_netstats);
 	if (!dev->tstats)
 		return -ENOMEM;
@@ -1272,5 +1284,5 @@ void ip_tunnel_setup(struct net_device *dev, int net_id)
 	tunnel->ip_tnl_net_id = net_id;
 }
 EXPORT_SYMBOL_GPL(ip_tunnel_setup);
-
+#endif
 MODULE_LICENSE("GPL");

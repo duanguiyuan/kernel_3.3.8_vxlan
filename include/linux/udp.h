@@ -81,11 +81,27 @@ struct udp_sock {
 	 * For encapsulation sockets.
 	 */
 	int (*encap_rcv)(struct sock *sk, struct sk_buff *skb);
+	void (*encap_destroy)(struct sock *sk);
+/* add by duanguiyuan */
+	unsigned char convert_csum:1;/* On receive, convert checksum
+					 * unnecessary to checksum complete
+					 * if possible.
+					 */
 };
 
 static inline struct udp_sock *udp_sk(const struct sock *sk)
 {
 	return (struct udp_sock *)sk;
+}
+
+static inline void udp_set_convert_csum(struct sock *sk, bool val)
+{
+	udp_sk(sk)->convert_csum = val;
+}
+
+static inline bool udp_get_convert_csum(struct sock *sk)
+{
+	return udp_sk(sk)->convert_csum;
 }
 
 #define udp_portaddr_for_each_entry(__sk, node, list) \
