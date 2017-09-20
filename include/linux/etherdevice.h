@@ -152,7 +152,11 @@ static inline void dev_hw_addr_random(struct net_device *dev, u8 *hwaddr)
 	dev->addr_assign_type |= NET_ADDR_RANDOM;
 	random_ether_addr(hwaddr);
 }
-
+static inline void eth_hw_addr_random(struct net_device *dev)
+{
+	dev->addr_assign_type |= NET_ADDR_RANDOM;
+	random_ether_addr(dev->dev_addr);
+}
 /**
  * compare_ether_addr - Compare two Ethernet addresses
  * @addr1: Pointer to a six-byte array containing the Ethernet address

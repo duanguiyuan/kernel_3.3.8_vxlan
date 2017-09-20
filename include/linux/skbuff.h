@@ -382,6 +382,10 @@ typedef unsigned char *sk_buff_data_t;
  *	@mark: Generic packet mark
  *	@dropcount: total number of sk_receive_queue overflows
  *	@vlan_tci: vlan tag control information
+ *	@inner_protocol: Protocol (encapsulation)
+ *	@inner_transport_header: Inner transport layer header (encapsulation)
+ *	@inner_network_header: Network layer header (encapsulation)
+ *	@inner_mac_header: Link layer header (encapsulation)
  *	@transport_header: Transport layer header
  *	@network_header: Network layer header
  *	@mac_header: Link layer header
@@ -509,6 +513,11 @@ struct sk_buff {
 	__u32			hash;
 	__u8			l4_hash:1;
 	__u8			sw_hash:1;
+	__u8			inner_protocol_type:1;
+	union {
+		__be16		inner_protocol;
+		__u8		inner_ipproto;
+	};
 //	__u16			ttt;
 /* begin: add by duanguiyuan */
 };
@@ -662,6 +671,11 @@ static inline void skb_clear_hash(struct sk_buff *skb)
 	skb->hash = 0;
 	skb->sw_hash = 0;
 	skb->l4_hash = 0;
+}
+static inline void skb_clear_hash_if_not_l4(struct sk_buff *skb)
+{
+	if (!skb->l4_hash)
+		skb_clear_hash(skb);
 }
 #ifdef NET_SKBUFF_DATA_USES_OFFSET
 static inline unsigned char *skb_end_pointer(const struct sk_buff *skb)
@@ -1410,6 +1424,15 @@ static inline void skb_reserve(struct sk_buff *skb, int len)
 	skb->tail += len;
 }
 
+#define ENCAP_TYPE_ETHER	0
+#define ENCAP_TYPE_IPPROTO	1
+
+static inline void skb_set_inner_protocol(struct sk_buff *skb,
+					  __be16 protocol)
+{
+	skb->inner_protocol = protocol;
+	skb->inner_protocol_type = ENCAP_TYPE_ETHER;
+}
 static inline void skb_reset_inner_headers(struct sk_buff *skb)
 {
 	//skb->inner_mac_header = skb->mac_header;

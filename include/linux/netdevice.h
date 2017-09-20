@@ -1558,6 +1558,10 @@ struct napi_gro_cb {
 
 	/* Free the skb? */
 	int free;
+	/* GRO checksum is valid */
+	u8	csum_valid:1;
+	/* used to support CHECKSUM_COMPLETE for tunneling protocols */
+	__wsum	csum;
 };
 
 #define NAPI_GRO_CB(skb) ((struct napi_gro_cb *)(skb)->cb)
@@ -1650,6 +1654,14 @@ struct pcpu_sw_netstats {
 
 extern int register_netdevice_notifier(struct notifier_block *nb);
 extern int unregister_netdevice_notifier(struct notifier_block *nb);
+struct netdev_notifier_info {
+	struct net_device *dev;
+};
+static inline struct net_device *
+netdev_notifier_info_to_dev(const struct netdev_notifier_info *info)
+{
+	return info->dev;
+}
 extern int call_netdevice_notifiers(unsigned long val, struct net_device *dev);
 
 
@@ -1797,6 +1809,13 @@ static inline void *skb_gro_network_header(struct sk_buff *skb)
 	       skb_network_offset(skb);
 }
 
+static inline void skb_gro_postpull_rcsum(struct sk_buff *skb,
+					const void *start, unsigned int len)
+{
+	if (NAPI_GRO_CB(skb)->csum_valid)
+		NAPI_GRO_CB(skb)->csum = csum_sub(NAPI_GRO_CB(skb)->csum,
+						  csum_partial(start, len, 0));
+}
 static inline int dev_hard_header(struct sk_buff *skb, struct net_device *dev,
 				  unsigned short type,
 				  const void *daddr, const void *saddr,
