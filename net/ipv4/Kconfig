@@ -314,6 +314,10 @@ config SYN_COOKIES
 
 	  If unsure, say N.
 
+config NET_UDP_TUNNEL
+	tristate
+	select NET_IP_TUNNEL
+	default y
 config INET_AH
 	tristate "IP: AH transformation"
 	select XFRM

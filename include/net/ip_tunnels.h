@@ -152,6 +152,16 @@ void ip_tunnel_dst_reset_all(struct ip_tunnel *t);
 int ip_tunnel_encap_setup(struct ip_tunnel *t,
 			  struct ip_tunnel_encap *ipencap);
 
+
+
+
+
+int iptunnel_pull_header(struct sk_buff *skb, int hdr_len, __be16 inner_proto);
+
+
+struct sk_buff *iptunnel_handle_offloads(struct sk_buff *skb, bool gre_csum,
+					 int gso_type_mask);
+#endif
 /* Extract dsfield from inner protocol */
 static inline u8 ip_tunnel_get_dsfield(const struct iphdr *iph,
 				       const struct sk_buff *skb)
@@ -163,7 +173,9 @@ static inline u8 ip_tunnel_get_dsfield(const struct iphdr *iph,
 	else
 		return 0;
 }
-
+/* 原函数 在  ip_tunnel_core.c 中定义 */
+struct rtnl_link_stats64 *ip_tunnel_get_stats64(struct net_device *dev,
+						struct rtnl_link_stats64 *tot);
 /* Propogate ECN bits out */
 static inline u8 ip_tunnel_ecn_encap(u8 tos, const struct iphdr *iph,
 				     const struct sk_buff *skb)
@@ -172,13 +184,6 @@ static inline u8 ip_tunnel_ecn_encap(u8 tos, const struct iphdr *iph,
 
 	return INET_ECN_encapsulate(tos, inner);
 }
-
-int iptunnel_pull_header(struct sk_buff *skb, int hdr_len, __be16 inner_proto);
-
-
-struct sk_buff *iptunnel_handle_offloads(struct sk_buff *skb, bool gre_csum,
-					 int gso_type_mask);
-
 static inline void iptunnel_xmit_stats(int err,
 				       struct net_device_stats *err_stats,
 				       struct pcpu_sw_netstats __percpu *stats)
@@ -198,12 +203,14 @@ static inline void iptunnel_xmit_stats(int err,
 		err_stats->tx_dropped++;
 	}
 }
-#endif
+
 int iptunnel_xmit(struct sock *sk, struct rtable *rt, struct sk_buff *skb,
 		  __be32 src, __be32 dst, __u8 proto,
 		  __u8 tos, __u8 ttl, __be16 df, bool xnet);
 struct sk_buff *iptunnel_handle_offloads(struct sk_buff *skb, bool gre_csum,
 					 int gso_type_mask);
+
+
 #endif /* CONFIG_INET */
 
 #endif /* __NET_IP_TUNNELS_H */
