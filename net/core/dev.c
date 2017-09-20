@@ -177,8 +177,10 @@
 #define PTYPE_HASH_MASK	(PTYPE_HASH_SIZE - 1)
 
 static DEFINE_SPINLOCK(ptype_lock);
+static DEFINE_SPINLOCK(offload_lock);
 static struct list_head ptype_base[PTYPE_HASH_SIZE] __read_mostly;
 static struct list_head ptype_all __read_mostly;	/* Taps */
+static struct list_head offload_base __read_mostly;
 
 /*
  * The @dev_base_head list is protected by @dev_base_lock and the rtnl
@@ -3585,6 +3587,33 @@ __napi_gro_receive(struct napi_struct *napi, struct sk_buff *skb)
 
 	return dev_gro_receive(napi, skb);
 }
+struct packet_offload *gro_find_receive_by_type(__be16 type)
+{
+	struct list_head *offload_head = &offload_base;
+	struct packet_offload *ptype;
+
+	list_for_each_entry_rcu(ptype, offload_head, list) {
+		if (ptype->type != type || !ptype->callbacks.gro_receive)
+			continue;
+		return ptype;
+	}
+	return NULL;
+}
+EXPORT_SYMBOL(gro_find_receive_by_type);
+
+struct packet_offload *gro_find_complete_by_type(__be16 type)
+{
+	struct list_head *offload_head = &offload_base;
+	struct packet_offload *ptype;
+
+	list_for_each_entry_rcu(ptype, offload_head, list) {
+		if (ptype->type != type || !ptype->callbacks.gro_complete)
+			continue;
+		return ptype;
+	}
+	return NULL;
+}
+EXPORT_SYMBOL(gro_find_complete_by_type);
 
 gro_result_t napi_skb_finish(gro_result_t ret, struct sk_buff *skb)
 {

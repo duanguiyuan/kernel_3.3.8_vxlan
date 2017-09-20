@@ -2260,6 +2260,8 @@ extern gro_result_t	napi_frags_finish(struct napi_struct *napi,
 extern struct sk_buff *	napi_frags_skb(struct napi_struct *napi);
 extern gro_result_t	napi_gro_frags(struct napi_struct *napi);
 
+extern struct packet_offload *gro_find_receive_by_type(__be16 type);
+extern struct packet_offload *gro_find_complete_by_type(__be16 type);
 static inline void napi_free_frags(struct napi_struct *napi)
 {
 	kfree_skb(napi->skb);
