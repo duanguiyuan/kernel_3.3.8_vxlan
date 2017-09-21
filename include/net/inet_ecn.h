@@ -197,11 +197,25 @@ static inline int IP_ECN_decapsulate(const struct iphdr *oiph,
 
 	if (skb->protocol == htons(ETH_P_IP))
 		inner = ip_hdr(skb)->tos;
-//	else if (skb->protocol == htons(ETH_P_IPV6))
-//		inner = ipv6_get_dsfield(ipv6_hdr(skb));
+	else if (skb->protocol == htons(ETH_P_IPV6))
+		inner = ipv6_get_dsfield(ipv6_hdr(skb));
 	else
 		return 0;
 
 	return INET_ECN_decapsulate(skb, oiph->tos, inner);
+}
+static inline int IP6_ECN_decapsulate(const struct ipv6hdr *oipv6h,
+				      struct sk_buff *skb)
+{
+	__u8 inner;
+
+	if (skb->protocol == htons(ETH_P_IP))
+		inner = ip_hdr(skb)->tos;
+	else if (skb->protocol == htons(ETH_P_IPV6))
+		inner = ipv6_get_dsfield(ipv6_hdr(skb));
+	else
+		return 0;
+
+	return INET_ECN_decapsulate(skb, ipv6_get_dsfield(oipv6h), inner);
 }
 #endif

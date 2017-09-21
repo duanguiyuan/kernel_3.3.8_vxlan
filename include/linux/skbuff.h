@@ -518,6 +518,7 @@ struct sk_buff {
 		__be16		inner_protocol;
 		__u8		inner_ipproto;
 	};
+	__be16			vlan_proto;
 //	__u16			ttt;
 /* begin: add by duanguiyuan */
 };
