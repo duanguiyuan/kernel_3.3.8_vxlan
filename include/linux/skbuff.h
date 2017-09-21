@@ -1451,7 +1451,12 @@ static inline unsigned char *skb_inner_network_header(const struct sk_buff *skb)
 {
 	return skb->head + skb->inner_network_header;
 }
+static inline unsigned char *skb_inner_mac_header(const struct sk_buff *skb)
+{
+	return skb->head + skb->inner_mac_header;
+}
 #ifdef NET_SKBUFF_DATA_USES_OFFSET
+
 static inline unsigned char *skb_transport_header(const struct sk_buff *skb)
 {
 	return skb->head + skb->transport_header;

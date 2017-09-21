@@ -1060,10 +1060,12 @@ struct net_device_ops {
  * @IFF_MACVLAN: Macvlan device
  */
 enum netdev_priv_flags {
-	IFF_LIVE_ADDR_CHANGE		= 1<<20
+	IFF_LIVE_ADDR_CHANGE		= 1<<20,
 	
+	IFF_XMIT_DST_RELEASE_PERM	= 1<<22,
 };
 #define IFF_LIVE_ADDR_CHANGE		IFF_LIVE_ADDR_CHANGE
+#define IFF_XMIT_DST_RELEASE_PERM	IFF_XMIT_DST_RELEASE_PERM
 /*
  *	The DEVICE structure.
  *	Actually, this whole structure is a big mistake.  It mixes I/O
@@ -2800,6 +2802,11 @@ static inline int netif_is_bond_slave(struct net_device *dev)
 	return dev->flags & IFF_SLAVE && dev->priv_flags & IFF_BONDING;
 }
 
+/* This device needs to keep skb dst for qdisc enqueue or ndo_start_xmit() */
+static inline void netif_keep_dst(struct net_device *dev)
+{
+	dev->priv_flags &= ~(IFF_XMIT_DST_RELEASE | IFF_XMIT_DST_RELEASE_PERM);
+}
 extern struct pernet_operations __net_initdata loopback_net_ops;
 
 /* Logging, debugging and troubleshooting/diagnostic helpers. */

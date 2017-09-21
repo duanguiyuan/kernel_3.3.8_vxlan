@@ -77,14 +77,13 @@ static inline netdev_features_t vxlan_features_check(struct sk_buff *skb,
 	default:
 		return features;;
 	}
-/* ÔÝÊ± ×¢ÊÍ
 	if ((l4_hdr == IPPROTO_UDP) &&
 	    (skb->inner_protocol_type != ENCAP_TYPE_ETHER ||
 	     skb->inner_protocol != htons(ETH_P_TEB) ||
 	     (skb_inner_mac_header(skb) - skb_transport_header(skb) !=
 	      sizeof(struct udphdr) + sizeof(struct vxlanhdr))))
 		return features & ~(NETIF_F_ALL_CSUM | NETIF_F_GSO_MASK);
-*/
+
 	return features;
 }
 
