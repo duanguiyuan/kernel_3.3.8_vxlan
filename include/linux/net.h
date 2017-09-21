@@ -272,6 +272,25 @@ do {								\
 	net_ratelimited_function(pr_debug, fmt, ##__VA_ARGS__)
 #define net_random()		random32()
 #define net_srandom(seed)	srandom32((__force u32)seed)
+extern bool __net_get_random_once_vxlan(void *buf, int nbytes);
+#define net_get_random_once(buf, nbytes) __net_get_random_once_vxlan(buf, nbytes)
+
+/* 原来的 函数内容 已经注释 现用 __net_get_random_once_vxlan调试 可能出现问题
+#define net_get_random_once(buf, nbytes)				\
+	({								\
+		bool ___ret = false;					\
+		static bool ___done = false;				\
+		static struct static_key ___once_key =			\
+			STATIC_KEY_INIT_TRUE;				\
+		if (static_key_true(&___once_key))			\
+			___ret = __net_get_random_once(buf,		\
+						       nbytes,		\
+						       &___done,	\
+						       &___once_key);	\
+		___ret;							\
+	})
+*/
+
 
 extern int   	     kernel_sendmsg(struct socket *sock, struct msghdr *msg,
 				    struct kvec *vec, size_t num, size_t len);

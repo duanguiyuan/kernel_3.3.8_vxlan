@@ -4,6 +4,7 @@
  * Copyright (C) 2009 Jason Baron <jbaron@redhat.com>
  * Copyright (C) 2011 Peter Zijlstra <pzijlstr@redhat.com>
  *
+*此处的struct static_key 全部由 struct jump_label_key 代替
  */
 #include <linux/memory.h>
 #include <linux/uaccess.h>

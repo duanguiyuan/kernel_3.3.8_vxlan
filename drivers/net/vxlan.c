@@ -1283,7 +1283,6 @@ static void vxlan_rcv(struct vxlan_sock *vs,
 		goto drop;
 
 	skb_reset_network_header(skb);
-/* ÔÝÊ± ×¢ÊÍ 00*/
 	if (oip6)
 		err = IP6_ECN_decapsulate(oip6, skb);
 	if (oip)
@@ -1710,7 +1709,6 @@ int vxlan_xmit_skb(struct vxlan_sock *vs,
 		kfree_skb(skb);
 		return err;
 	}
-/* ÔÝÊ± ×¢ÊÍ 41*/
 	skb = vlan_hwaccel_push_inside(skb);
 	if (WARN_ON(!skb))
 		return -ENOMEM;

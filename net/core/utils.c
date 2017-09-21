@@ -321,3 +321,24 @@ int mac_pton(const char *s, u8 *mac)
 	return 1;
 }
 EXPORT_SYMBOL(mac_pton);
+/* 自定义 函数  为了 除去 static_key相关的操作  本内核版本较低 不支持 static_key机制*/
+bool __net_get_random_once_vxlan(void *buf, int nbytes)
+{
+	static DEFINE_SPINLOCK(lock);
+	unsigned long flags;
+
+	spin_lock_irqsave(&lock, flags);
+//	if (*done) {
+//		spin_unlock_irqrestore(&lock, flags);
+//		printk("__net_get_random_once_vxlan error\n");
+//		return false;
+//	}
+
+	get_random_bytes(buf, nbytes);
+//	*done = true;
+	spin_unlock_irqrestore(&lock, flags);
+
+	//__net_random_once_disable_jump(once_key);
+
+	return true;
+}
