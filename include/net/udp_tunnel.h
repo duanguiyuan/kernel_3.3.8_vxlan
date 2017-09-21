@@ -122,8 +122,7 @@ static inline void udp_tunnel_encap_enable(struct socket *sock)
 		ipv6_stub->udpv6_encap_enable();
 	else
 #endif
-/* днЪБ зЂЪЭ*/
-	//udp_encap_enable();
+	udp_encap_enable();
 }
 
 #endif
