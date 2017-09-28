@@ -37,7 +37,7 @@ struct udp_port_cfg {
 				use_udp6_rx_checksums:1;
 };
 
-int udp_sock_create4(struct net *net, struct udp_port_cfg *cfg,
+extern int udp_sock_create4(struct net *net, struct udp_port_cfg *cfg,
 		     struct socket **sockp);
 
 //#if IS_ENABLED(CONFIG_IPV6)
@@ -77,11 +77,11 @@ struct udp_tunnel_sock_cfg {
 };
 
 /* Setup the given (UDP) sock to receive UDP encapsulated packets */
-void setup_udp_tunnel_sock(struct net *net, struct socket *sock,
+extern void setup_udp_tunnel_sock(struct net *net, struct socket *sock,
 			   struct udp_tunnel_sock_cfg *sock_cfg);
 
 /* Transmit the skb using UDP encapsulation. */
-int udp_tunnel_xmit_skb(struct socket *sock, struct rtable *rt,
+extern int udp_tunnel_xmit_skb(struct socket *sock, struct rtable *rt,
 			struct sk_buff *skb, __be32 src, __be32 dst,
 			__u8 tos, __u8 ttl, __be16 df, __be16 src_port,
 			__be16 dst_port, bool xnet);
@@ -95,7 +95,7 @@ int udp_tunnel6_xmit_skb(struct socket *sock, struct dst_entry *dst,
 			 __be16 dst_port);
 #endif
 
-void udp_tunnel_sock_release(struct socket *sock);
+extern void udp_tunnel_sock_release(struct socket *sock);
 
 static inline struct sk_buff *udp_tunnel_handle_offloads(struct sk_buff *skb,
 							 bool udp_csum)

@@ -76,10 +76,10 @@ int iptunnel_xmit(struct sock *sk, struct rtable *rt, struct sk_buff *skb,
 	struct iphdr *iph;
 	int err;
 
-	skb_scrub_packet(skb, xnet);
+	skb_scrub_packet(skb, xnet);//清空skb相关信息  
 
-	skb_clear_hash(skb);
-	skb_dst_set(skb, &rt->dst);
+	skb_clear_hash(skb); //清空skb hash值 
+	skb_dst_set(skb, &rt->dst); //rt必须根据外层报文的IP地址及相关信息获取到的  
 	memset(IPCB(skb), 0, sizeof(*IPCB(skb)));
 
 	/* Push down and install the IP header. */
@@ -90,14 +90,21 @@ int iptunnel_xmit(struct sock *sk, struct rtable *rt, struct sk_buff *skb,
 
 	iph->version	=	4;
 	iph->ihl	=	sizeof(struct iphdr) >> 2;
-	iph->frag_off	=	df;
-	iph->protocol	=	proto;
+	iph->frag_off	=	df;//OVS2.5默认有df标记  
+	iph->protocol	=	proto; //vxlan，该协议为UDP  
 	iph->tos	=	tos;
 	iph->daddr	=	dst;
 	iph->saddr	=	src;
 	iph->ttl	=	ttl;
+#if 0
+	/* 原始函数*/
+	//计算IP报文的ID值  
+	//写入到 iph->id 
 	__ip_select_ident_vxlan(iph, skb_shinfo(skb)->gso_segs ?: 1);
-
+#else
+	/* 调试函数*/
+	__ip_select_ident(iph,&rt->dst,0);
+#endif	
 	/* 修改 tihuan*/
 	//err = ip_local_out_sk(sk, skb);
 	//  //调用ip层发送函数

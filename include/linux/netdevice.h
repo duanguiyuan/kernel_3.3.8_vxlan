@@ -64,10 +64,10 @@ struct wireless_dev;
 #define SET_ETHTOOL_OPS(netdev,ops) \
 	( (netdev)->ethtool_ops = (ops) )
 
-/* hardware address assignment types */
-#define NET_ADDR_PERM		0	/* address is permanent (default) */
-#define NET_ADDR_RANDOM		1	/* address is generated randomly */
-#define NET_ADDR_STOLEN		2	/* address is stolen from other device */
+/* hardware address assignment types 分配的类型*/
+#define NET_ADDR_PERM		0	/* address is permanent (default) 永久地址 */
+#define NET_ADDR_RANDOM		1	/* address is generated randomly 随机地址*/
+#define NET_ADDR_STOLEN		2	/* address is stolen from other device 复制地址*/
 
 /* Backlog congestion levels */
 #define NET_RX_SUCCESS		0	/* keep 'em coming, baby */
