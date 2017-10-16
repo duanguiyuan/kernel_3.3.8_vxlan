@@ -743,7 +743,14 @@ static void vxlan_notify_del_rx_port(struct vxlan_sock *vs)
 
 	rcu_read_lock();
 	for_each_netdev_rcu(net, dev) {
-		if (dev->netdev_ops->ndo_del_vxlan_port)
+		/**/
+		/* 调试 01 */
+		/* 此处 如果 dev->name 是 wifi 则会报异常 推测是 wifi 驱动问题 故 除去wifi的相关操作 */
+		/*原始 函数 */ //if (dev->netdev_ops->ndo_del_vxlan_port)
+		if ((dev->netdev_ops->ndo_del_vxlan_port)
+			&&(!(dev->name[0] == 'w' && dev->name[1] == 'i'))\
+			&&(!(dev->name[0] == 'a' && dev->name[1] == 't'))\
+			&&(!(dev->name[0] == 'i' && dev->name[1] == 'f')))
 			dev->netdev_ops->ndo_del_vxlan_port(dev, sa_family,
 							    port);
 	}
@@ -1132,15 +1139,15 @@ void vxlan_sock_release(struct vxlan_sock *vs)
 	struct sock *sk = vs->sock->sk;
 	struct net *net = sock_net(sk);
 	struct vxlan_net *vn = net_generic(net, vxlan_net_id);
-
+printk("vxlan_sock_release ..0 \n");
 	if (!atomic_dec_and_test(&vs->refcnt))
 		return;
-
+printk("vxlan_sock_release ..1 \n");
 	spin_lock(&vn->sock_lock);
 	hlist_del_rcu(&vs->hlist);
 	vxlan_notify_del_rx_port(vs);
 	spin_unlock(&vn->sock_lock);
-
+printk("vxlan_sock_release ..2 \n");
 	queue_work(vxlan_wq, &vs->del_work);
 }
 EXPORT_SYMBOL_GPL(vxlan_sock_release);
@@ -1272,9 +1279,10 @@ static void vxlan_rcv(struct vxlan_sock *vs,
 /* tihuan 替换 mac 比较函数 兼容 不通版本的 内核  */
 	/* Ignore packet loops (and multicast echo) */
 //	if (ether_addr_equal(eth_hdr(skb)->h_source, vxlan->dev->dev_addr))
+//printk("h_source [%pM] dev_addr [%pM] \n",eth_hdr(skb)->h_source,vxlan->dev->dev_addr);
 	if (0 == compare_ether_addr(eth_hdr(skb)->h_source, vxlan->dev->dev_addr))/*报文的 源MAC 是设备自己则丢弃*/
 		goto drop;
-
+//printk("not drop\n");
 	/* Re-examine inner Ethernet packet */
 	if (remote_ip->sa.sa_family == AF_INET) {
 		oip = ip_hdr(skb);
@@ -2691,16 +2699,20 @@ return -EPFNOSUPPORT;
 
 static void vxlan_dellink(struct net_device *dev, struct list_head *head)
 {
+printk("Test vxlan_dellink ... start\n");
 	struct vxlan_dev *vxlan = netdev_priv(dev);
 	struct vxlan_net *vn = net_generic(vxlan->net, vxlan_net_id);
-
+printk("Test vxlan_dellink ... 0\n");
 	spin_lock(&vn->sock_lock);
 	if (!hlist_unhashed(&vxlan->hlist))
 		hlist_del_rcu(&vxlan->hlist);
+printk("Test vxlan_dellink ... 1\n");	
 	spin_unlock(&vn->sock_lock);
-
+printk("Test vxlan_dellink ... 2\n");
 	list_del(&vxlan->next);
+printk("Test vxlan_dellink ... 3\n");
 	unregister_netdevice_queue(dev, head);
+printk("Test vxlan_dellink ... end\n");
 }
 
 static size_t vxlan_get_size(const struct net_device *dev)
@@ -2821,33 +2833,39 @@ static void vxlan_handle_lowerdev_unregister(struct vxlan_net *vn,
 {
 	struct vxlan_dev *vxlan, *next;
 	LIST_HEAD(list_kill);
-
+printk("Test vxlan_handle_lowerdev_unregister ... 0\n");
 	list_for_each_entry_safe(vxlan, next, &vn->vxlan_list, next) {
 		struct vxlan_rdst *dst = &vxlan->default_dst;
-
+printk("Test vxlan_handle_lowerdev_unregister ... 1 00 \n");
 		/* In case we created vxlan device with carrier
 		 * and we loose the carrier due to module unload
 		 * we also need to remove vxlan device. In other
 		 * cases, it's not necessary and remote_ifindex
 		 * is 0 here, so no matches.
 		 */
-		if (dst->remote_ifindex == dev->ifindex)
+printk("Test vxlan_handle_lowerdev_unregister  remote_ifindex[%d] \n",dst->remote_ifindex);
+//printk("Test vxlan_handle_lowerdev_unregister ifindex[%d]\n",dev->ifindex);
+		/* 调试 02*/
+		/* 原函数 */ //if (dst->remote_ifindex == dev->ifindex)
+		if (dst->remote_ifindex == 0)
 			vxlan_dellink(vxlan->dev, &list_kill);
+printk("Test vxlan_handle_lowerdev_unregister ... 2\n");
 	}
 
 	unregister_netdevice_many(&list_kill);
+	printk("Test vxlan_handle_lowerdev_unregister ... end\n");
 }
 
 static int vxlan_lowerdev_event(struct notifier_block *unused,
 				unsigned long event, void *ptr)
 {
-
+printk("Test vxlan_lowerdev_event ... 0\n");	
 	struct net_device *dev = netdev_notifier_info_to_dev(ptr);
 	struct vxlan_net *vn = net_generic(dev_net(dev), vxlan_net_id);
-
+printk("Test vxlan_lowerdev_event ... 1 event[%x]\n",event);	
 	if (event == NETDEV_UNREGISTER)
 		vxlan_handle_lowerdev_unregister(vn, dev);
-
+printk("Test vxlan_lowerdev_event ... 2\n");	
 	return NOTIFY_DONE;
 }
 
