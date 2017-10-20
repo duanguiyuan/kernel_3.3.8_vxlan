@@ -732,33 +732,26 @@ static inline u32 rt_score(struct rtable *rt)
  */
 u32 ip_idents_reserve(u32 hash, int segs)
 {
-printk("ip_idents_reserve .. init 0 \n");
 	struct ip_ident_bucket *bucket = ip_idents + hash % IP_IDENTS_SZ;
 	u32 old = ACCESS_ONCE(bucket->stamp32);
 	u32 now = (u32)jiffies;
 	u32 delta = 0;
-printk("ip_idents_reserve .. 0 \n");
 	if (old != now && cmpxchg(&bucket->stamp32, old, now) == old)
 		delta = prandom_u32_max(now - old);
-printk("ip_idents_reserve .. 1 \n");
 	return atomic_add_return(segs + delta, &bucket->id) - segs;
 }
 EXPORT_SYMBOL(ip_idents_reserve);
 void __ip_select_ident_vxlan(struct iphdr *iph, int segs)
 {
-printk("__ip_select_ident_vxlan ..0 \n");
 	static u32 ip_idents_hashrnd __read_mostly;
 	u32 hash, id;
 	net_get_random_once(&ip_idents_hashrnd, sizeof(ip_idents_hashrnd));
-printk("__ip_select_ident_vxlan ..1 \n");
 	hash = jhash_3words((__force u32)iph->daddr,
 			    (__force u32)iph->saddr,
 			    iph->protocol,
 			    ip_idents_hashrnd);
-printk("__ip_select_ident_vxlan ..2 \n");
 	id = ip_idents_reserve(hash, segs);
 	iph->id = htons(id);
-printk("__ip_select_ident_vxlan ..end\n");
 }
 EXPORT_SYMBOL(__ip_select_ident_vxlan);
 

@@ -704,19 +704,19 @@ static void vxlan_notify_add_rx_port(struct vxlan_sock *vs)
 	sa_family_t sa_family = sk->sk_family;
 	__be16 port = inet_sk(sk)->inet_sport;
 	int err;
-	printk("vxlan_notify_add_rx_port _ sa_family:[%d] \n",sa_family);
+	//printk("vxlan_notify_add_rx_port _ sa_family:[%d] \n",sa_family);
 	if (sa_family == AF_INET) {
-printk("vxlan_notify_add_rx_port ..0 \n");
+//printk("vxlan_notify_add_rx_port ..0 \n");
 		err = udp_add_offload(&vs->udp_offloads);//注册vxlan gro offload对象
 		if (err)
 			pr_warn("vxlan: udp_add_offload failed with status %d\n", err);
-printk("vxlan_notify_add_rx_port ..1 \n");
+//printk("vxlan_notify_add_rx_port ..1 \n");
 	}
-printk("vxlan_notify_add_rx_port ..2 \n");
+//printk("vxlan_notify_add_rx_port ..2 \n");
 	rcu_read_lock();
-printk("vxlan_notify_add_rx_port ..3 \n");	
+//printk("vxlan_notify_add_rx_port ..3 \n");	
 	for_each_netdev_rcu(net, dev) {
-printk("vxlan_notify_add_rx_port ..4 [%s][%d]sa_family[%d]\n",dev->name,port,sa_family);
+//printk("vxlan_notify_add_rx_port ..4 [%s][%d]sa_family[%d]\n",dev->name,port,sa_family);
 		/* 调试 01 */
 		/* 此处 如果 dev->name 是 wifi 则会报异常 推测是 wifi 驱动问题 故 除去wifi的相关操作 */
 		/*原始 函数 */ //if (dev->netdev_ops->ndo_add_vxlan_port)
@@ -726,10 +726,10 @@ printk("vxlan_notify_add_rx_port ..4 [%s][%d]sa_family[%d]\n",dev->name,port,sa_
 			&&(!(dev->name[0] == 'i' && dev->name[1] == 'f')))
 			dev->netdev_ops->ndo_add_vxlan_port(dev, sa_family,
 							    port);
-printk("vxlan_notify_add_rx_port ..5 \n");
+//printk("vxlan_notify_add_rx_port ..5 \n");
 	}
 	rcu_read_unlock();
-printk("vxlan_notify_add_rx_port ..end \n");
+//printk("vxlan_notify_add_rx_port ..end \n");
 }
 
 /* Notify netdevs that UDP port is no more listening */
@@ -1139,15 +1139,15 @@ void vxlan_sock_release(struct vxlan_sock *vs)
 	struct sock *sk = vs->sock->sk;
 	struct net *net = sock_net(sk);
 	struct vxlan_net *vn = net_generic(net, vxlan_net_id);
-printk("vxlan_sock_release ..0 \n");
+//printk("vxlan_sock_release ..0 \n");
 	if (!atomic_dec_and_test(&vs->refcnt))
 		return;
-printk("vxlan_sock_release ..1 \n");
+//printk("vxlan_sock_release ..1 \n");
 	spin_lock(&vn->sock_lock);
 	hlist_del_rcu(&vs->hlist);
 	vxlan_notify_del_rx_port(vs);
 	spin_unlock(&vn->sock_lock);
-printk("vxlan_sock_release ..2 \n");
+//printk("vxlan_sock_release ..2 \n");
 	queue_work(vxlan_wq, &vs->del_work);
 }
 EXPORT_SYMBOL_GPL(vxlan_sock_release);
@@ -1279,10 +1279,10 @@ static void vxlan_rcv(struct vxlan_sock *vs,
 /* tihuan 替换 mac 比较函数 兼容 不通版本的 内核  */
 	/* Ignore packet loops (and multicast echo) */
 //	if (ether_addr_equal(eth_hdr(skb)->h_source, vxlan->dev->dev_addr))
-//printk("h_source [%pM] dev_addr [%pM] \n",eth_hdr(skb)->h_source,vxlan->dev->dev_addr);
+////printk("h_source [%pM] dev_addr [%pM] \n",eth_hdr(skb)->h_source,vxlan->dev->dev_addr);
 	if (0 == compare_ether_addr(eth_hdr(skb)->h_source, vxlan->dev->dev_addr))/*报文的 源MAC 是设备自己则丢弃*/
 		goto drop;
-//printk("not drop\n");
+////printk("not drop\n");
 	/* Re-examine inner Ethernet packet */
 	if (remote_ip->sa.sa_family == AF_INET) {
 		oip = ip_hdr(skb);
@@ -2269,13 +2269,13 @@ EXPORT_SYMBOL_GPL(vxlan_get_rx_port);
 /* Initialize the device structure. */
 static void vxlan_setup(struct net_device *dev)
 {
-printk("Test vxlan_setup ... \n");
+//printk("Test vxlan_setup ... \n");
 	struct vxlan_dev *vxlan = netdev_priv(dev);
 	unsigned int h;
 
 	eth_hw_addr_random(dev);/* 随机出一个 mac 存放dev->dev_addr */
 	ether_setup(dev);
-printk(" vxlan_setup ip sa_family :[%d] \n",vxlan->default_dst.remote_ip.sa.sa_family);
+//printk(" vxlan_setup ip sa_family :[%d] \n",vxlan->default_dst.remote_ip.sa.sa_family);
 	if (vxlan->default_dst.remote_ip.sa.sa_family == AF_INET6)/*sa_family 默认是0 */
 		dev->needed_headroom = ETH_HLEN + VXLAN6_HEADROOM;
 	else
@@ -2302,7 +2302,7 @@ printk(" vxlan_setup ip sa_family :[%d] \n",vxlan->default_dst.remote_ip.sa.sa_f
 
 	netif_keep_dst(dev);
 	dev->priv_flags |= IFF_LIVE_ADDR_CHANGE;
-printk("Test vxlan_setup ... 0 \n");
+//printk("Test vxlan_setup ... 0 \n");
 	INIT_LIST_HEAD(&vxlan->next);		/* 初始化双向链表*/
 	spin_lock_init(&vxlan->hash_lock);
 	INIT_WORK(&vxlan->igmp_join, vxlan_igmp_join);
@@ -2314,7 +2314,7 @@ printk("Test vxlan_setup ... 0 \n");
 	vxlan->age_timer.data = (unsigned long) vxlan;
 
 	vxlan->dst_port = htons(vxlan_port); /* line 75  8472 */
-printk("Test vxlan_setup ... 1 \n");
+//printk("Test vxlan_setup ... 1 \n");
 	vxlan->dev = dev;
 
 	for (h = 0; h < FDB_HASH_SIZE; ++h)
@@ -2405,7 +2405,7 @@ static struct socket *vxlan_create_sock(struct net *net, bool ipv6,
 	int err;
 
 	memset(&udp_conf, 0, sizeof(udp_conf));
-printk("vxlan_create_sock ipv6:[%d]\n",ipv6);/* ipv6 默认 0*/
+//printk("vxlan_create_sock ipv6:[%d]\n",ipv6);/* ipv6 默认 0*/
 	if (ipv6) {
 		udp_conf.family = AF_INET6;
 		udp_conf.use_udp6_tx_checksums =
@@ -2440,7 +2440,7 @@ static struct vxlan_sock *vxlan_socket_create(struct net *net, __be16 port,
 	unsigned int h;
 	bool ipv6 = !!(flags & VXLAN_F_IPV6);
 	struct udp_tunnel_sock_cfg tunnel_cfg;
-printk("vxlan_socket_create ...  \n");
+//printk("vxlan_socket_create ...  \n");
 	vs = kzalloc(sizeof(*vs), GFP_KERNEL);
 	if (!vs)
 		return ERR_PTR(-ENOMEM);
@@ -2449,39 +2449,39 @@ printk("vxlan_socket_create ...  \n");
 		INIT_HLIST_HEAD(&vs->vni_list[h]);
 
 	INIT_WORK(&vs->del_work, vxlan_del_work);
-printk("vxlan_socket_create ... 0 \n");
+//printk("vxlan_socket_create ... 0 \n");
 	sock = vxlan_create_sock(net, ipv6, port, flags);
 	if (IS_ERR(sock)) {
 		kfree(vs);
 		return ERR_CAST(sock);
 	}
-printk("vxlan_socket_create ... 1 \n");
+//printk("vxlan_socket_create ... 1 \n");
 	vs->sock = sock;
 	atomic_set(&vs->refcnt, 1);
 	vs->rcv = rcv;
 	vs->data = data;
-printk("vxlan_socket_create ...2 \n");
+//printk("vxlan_socket_create ...2 \n");
 	/* Initialize the vxlan udp offloads structure */
 	vs->udp_offloads.port = port;
 	vs->udp_offloads.callbacks.gro_receive  = vxlan_gro_receive;
 	vs->udp_offloads.callbacks.gro_complete = vxlan_gro_complete;
-printk("vxlan_socket_create ... 3 \n");
+//printk("vxlan_socket_create ... 3 \n");
 	spin_lock(&vn->sock_lock);
-	printk("vxlan_socket_create ... 3.0 \n");
+	//printk("vxlan_socket_create ... 3.0 \n");
 	hlist_add_head_rcu(&vs->hlist, vs_head(net, port));
-	printk("vxlan_socket_create ... 3.1 \n");
+	//printk("vxlan_socket_create ... 3.1 \n");
 	vxlan_notify_add_rx_port(vs);			//注册vxlan gro offload
-	printk("vxlan_socket_create ... 3.2 \n");
+	//printk("vxlan_socket_create ... 3.2 \n");
 	spin_unlock(&vn->sock_lock);
-printk("vxlan_socket_create ... 4 \n");
+//printk("vxlan_socket_create ... 4 \n");
 	/* Mark socket as an encapsulation socket. */
 	tunnel_cfg.sk_user_data = vs;
 	tunnel_cfg.encap_type = 1;
 	tunnel_cfg.encap_rcv = vxlan_udp_encap_recv;
 	tunnel_cfg.encap_destroy = NULL;
-printk("vxlan_socket_create ... 5 \n");
+//printk("vxlan_socket_create ... 5 \n");
 	setup_udp_tunnel_sock(net, sock, &tunnel_cfg);
-printk("vxlan_socket_create ... end \n");
+//printk("vxlan_socket_create ... end \n");
 	return vs;
 }
 
@@ -2492,24 +2492,24 @@ struct vxlan_sock *vxlan_sock_add(struct net *net, __be16 port,
 	struct vxlan_net *vn = net_generic(net, vxlan_net_id);
 	struct vxlan_sock *vs;
 	bool ipv6 = flags & VXLAN_F_IPV6;
-printk("vxlan_sock_add ...  \n");
+//printk("vxlan_sock_add ...  \n");
 	vs = vxlan_socket_create(net, port, rcv, data, flags);
 	if (!IS_ERR(vs))
 		return vs;
-printk("vxlan_sock_add : vxlan_socket_create \n");
+//printk("vxlan_sock_add : vxlan_socket_create \n");
 	if (no_share)	/* Return error if sharing is not allowed. */
 		return vs;
-printk("vxlan_sock_add ... 0 \n");
+//printk("vxlan_sock_add ... 0 \n");
 	spin_lock(&vn->sock_lock);
 	vs = vxlan_find_sock(net, ipv6 ? AF_INET6 : AF_INET, port);
 	if (vs && ((vs->rcv != rcv) ||
 		   !atomic_add_unless(&vs->refcnt, 1, 0)))
 			vs = ERR_PTR(-EBUSY);
 	spin_unlock(&vn->sock_lock);
-printk("vxlan_sock_add ... 1 \n");
+//printk("vxlan_sock_add ... 1 \n");
 	if (!vs)
 		vs = ERR_PTR(-EINVAL);
-printk("vxlan_sock_add ... end \n");
+//printk("vxlan_sock_add ... end \n");
 	return vs;
 }
 EXPORT_SYMBOL_GPL(vxlan_sock_add);
@@ -2517,21 +2517,21 @@ EXPORT_SYMBOL_GPL(vxlan_sock_add);
 /* Scheduled at device creation to bind to a socket 创建一个socket 并绑定*/
 static void vxlan_sock_work(struct work_struct *work)
 {
-printk("Test vxlan_sock_work ... \n");
+//printk("Test vxlan_sock_work ... \n");
 	struct vxlan_dev *vxlan = container_of(work, struct vxlan_dev, sock_work);
 	struct net *net = vxlan->net;
 	struct vxlan_net *vn = net_generic(net, vxlan_net_id);
 	__be16 port = vxlan->dst_port;
 	struct vxlan_sock *nvs;
-printk("Test vxlan_sock_work ... 0 \n");
+//printk("Test vxlan_sock_work ... 0 \n");
 	nvs = vxlan_sock_add(net, port, vxlan_rcv, NULL, false, vxlan->flags);
 	spin_lock(&vn->sock_lock);
 	if (!IS_ERR(nvs))
 		vxlan_vs_add_dev(nvs, vxlan);
 	spin_unlock(&vn->sock_lock);
-printk("Test vxlan_sock_work ... 1 \n");
+//printk("Test vxlan_sock_work ... 1 \n");
 	dev_put(vxlan->dev);
-printk("Test vxlan_sock_work ... end\n");	
+//printk("Test vxlan_sock_work ... end\n");	
 }
 
 static int vxlan_newlink(struct net *net, struct net_device *dev,
@@ -2699,20 +2699,20 @@ return -EPFNOSUPPORT;
 
 static void vxlan_dellink(struct net_device *dev, struct list_head *head)
 {
-printk("Test vxlan_dellink ... start\n");
+//printk("Test vxlan_dellink ... start\n");
 	struct vxlan_dev *vxlan = netdev_priv(dev);
 	struct vxlan_net *vn = net_generic(vxlan->net, vxlan_net_id);
-printk("Test vxlan_dellink ... 0\n");
+//printk("Test vxlan_dellink ... 0\n");
 	spin_lock(&vn->sock_lock);
 	if (!hlist_unhashed(&vxlan->hlist))
 		hlist_del_rcu(&vxlan->hlist);
-printk("Test vxlan_dellink ... 1\n");	
+//printk("Test vxlan_dellink ... 1\n");	
 	spin_unlock(&vn->sock_lock);
-printk("Test vxlan_dellink ... 2\n");
+//printk("Test vxlan_dellink ... 2\n");
 	list_del(&vxlan->next);
-printk("Test vxlan_dellink ... 3\n");
+//printk("Test vxlan_dellink ... 3\n");
 	unregister_netdevice_queue(dev, head);
-printk("Test vxlan_dellink ... end\n");
+//printk("Test vxlan_dellink ... end\n");
 }
 
 static size_t vxlan_get_size(const struct net_device *dev)
@@ -2833,39 +2833,39 @@ static void vxlan_handle_lowerdev_unregister(struct vxlan_net *vn,
 {
 	struct vxlan_dev *vxlan, *next;
 	LIST_HEAD(list_kill);
-printk("Test vxlan_handle_lowerdev_unregister ... 0\n");
+//printk("Test vxlan_handle_lowerdev_unregister ... 0\n");
 	list_for_each_entry_safe(vxlan, next, &vn->vxlan_list, next) {
 		struct vxlan_rdst *dst = &vxlan->default_dst;
-printk("Test vxlan_handle_lowerdev_unregister ... 1 00 \n");
+//printk("Test vxlan_handle_lowerdev_unregister ... 1 00 \n");
 		/* In case we created vxlan device with carrier
 		 * and we loose the carrier due to module unload
 		 * we also need to remove vxlan device. In other
 		 * cases, it's not necessary and remote_ifindex
 		 * is 0 here, so no matches.
 		 */
-printk("Test vxlan_handle_lowerdev_unregister  remote_ifindex[%d] \n",dst->remote_ifindex);
-//printk("Test vxlan_handle_lowerdev_unregister ifindex[%d]\n",dev->ifindex);
+//printk("Test vxlan_handle_lowerdev_unregister  remote_ifindex[%d] \n",dst->remote_ifindex);
+////printk("Test vxlan_handle_lowerdev_unregister ifindex[%d]\n",dev->ifindex);
 		/* 调试 02*/
 		/* 原函数 */ //if (dst->remote_ifindex == dev->ifindex)
 		if (dst->remote_ifindex == 0)
 			vxlan_dellink(vxlan->dev, &list_kill);
-printk("Test vxlan_handle_lowerdev_unregister ... 2\n");
+//printk("Test vxlan_handle_lowerdev_unregister ... 2\n");
 	}
 
 	unregister_netdevice_many(&list_kill);
-	printk("Test vxlan_handle_lowerdev_unregister ... end\n");
+	//printk("Test vxlan_handle_lowerdev_unregister ... end\n");
 }
 
 static int vxlan_lowerdev_event(struct notifier_block *unused,
 				unsigned long event, void *ptr)
 {
-printk("Test vxlan_lowerdev_event ... 0\n");	
+//printk("Test vxlan_lowerdev_event ... 0\n");	
 	struct net_device *dev = netdev_notifier_info_to_dev(ptr);
 	struct vxlan_net *vn = net_generic(dev_net(dev), vxlan_net_id);
-printk("Test vxlan_lowerdev_event ... 1 event[%x]\n",event);	
+//printk("Test vxlan_lowerdev_event ... 1 event[%x]\n",event);	
 	if (event == NETDEV_UNREGISTER)
 		vxlan_handle_lowerdev_unregister(vn, dev);
-printk("Test vxlan_lowerdev_event ... 2\n");	
+//printk("Test vxlan_lowerdev_event ... 2\n");	
 	return NOTIFY_DONE;
 }
 

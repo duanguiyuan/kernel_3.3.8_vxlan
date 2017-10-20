@@ -326,18 +326,18 @@ bool __net_get_random_once_vxlan(void *buf, int nbytes)
 {
 	static DEFINE_SPINLOCK(lock);
 	unsigned long flags;
-printk("__net_get_random_once_vxlan ..0 \n");
+//printk("__net_get_random_once_vxlan ..0 \n");
 	spin_lock_irqsave(&lock, flags);
 //	if (*done) {
 //		spin_unlock_irqrestore(&lock, flags);
 //		printk("__net_get_random_once_vxlan error\n");
 //		return false;
 //	}
-printk("__net_get_random_once_vxlan ..1 \n");
+//printk("__net_get_random_once_vxlan ..1 \n");
 	get_random_bytes(buf, nbytes);
 //	*done = true;
 	spin_unlock_irqrestore(&lock, flags);
-printk("__net_get_random_once_vxlan ..2 \n");
+//printk("__net_get_random_once_vxlan ..2 \n");
 	//__net_random_once_disable_jump(once_key);
 
 	return true;
