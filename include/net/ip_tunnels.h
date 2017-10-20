@@ -210,7 +210,7 @@ extern int iptunnel_xmit(struct sock *sk, struct rtable *rt, struct sk_buff *skb
 		  __u8 tos, __u8 ttl, __be16 df, bool xnet);
 extern struct sk_buff *iptunnel_handle_offloads(struct sk_buff *skb, bool gre_csum,
 					 int gso_type_mask);
-
+extern void skb_scrub_packet(struct sk_buff *skb, bool xnet);
 
 #endif /* CONFIG_INET */
 

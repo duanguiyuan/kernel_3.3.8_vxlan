@@ -7,6 +7,85 @@
 #include <net/udp.h>
 #include <net/udp_tunnel.h>
 #include <net/net_namespace.h>
+/****************************************************************************************************/
+/************************************   udp.c    ************************************************/
+/****************************************************************************************************/
+
+/* Function to set UDP checksum for an IPv4 UDP packet. This is intended
+ * for the simple case like when setting the checksum for a UDP tunnel.
+ */
+void udp_set_csum(bool nocheck, struct sk_buff *skb,
+		  __be32 saddr, __be32 daddr, int len)
+{
+	struct udphdr *uh = udp_hdr(skb);
+
+	if (nocheck)
+		uh->check = 0;
+	else if (skb_is_gso(skb))
+		uh->check = ~udp_v4_check(len, saddr, daddr, 0);
+	else if (skb_dst(skb) && skb_dst(skb)->dev &&
+		 (skb_dst(skb)->dev->features & NETIF_F_V4_CSUM)) {
+
+		BUG_ON(skb->ip_summed == CHECKSUM_PARTIAL);
+
+		skb->ip_summed = CHECKSUM_PARTIAL;
+		skb->csum_start = skb_transport_header(skb) - skb->head;
+		skb->csum_offset = offsetof(struct udphdr, check);
+		uh->check = ~udp_v4_check(len, saddr, daddr, 0);
+	} else {
+		__wsum csum;
+
+		BUG_ON(skb->ip_summed == CHECKSUM_PARTIAL);
+
+		uh->check = 0;
+		csum = skb_checksum(skb, 0, len, 0);
+		uh->check = udp_v4_check(len, saddr, daddr, csum);
+		if (uh->check == 0)
+			uh->check = CSUM_MANGLED_0;
+
+		skb->ip_summed = CHECKSUM_UNNECESSARY;
+	}
+}
+//static struct static_key udpv6_encap_needed __read_mostly;
+static struct jump_label_key udpv6_encap_needed __read_mostly;
+void udpv6_encap_enable(void)
+{
+/*	
+	此函数 应在 ipv6/udp.c 中，此处调试 暂放此处
+  	tihuan  原 kernel 3.18.45 中的函数 如下
+*/
+ /*       if (!static_key_enabled(&udpv6_encap_needed))
+                static_key_slow_inc(&udpv6_encap_needed);
+ */
+   if (!jump_label_enabled(&udpv6_encap_needed))
+   		jump_label_inc(&udpv6_encap_needed);
+}
+//EXPORT_SYMBOL(udpv6_encap_enable);
+
+//static struct static_key udp_encap_needed __read_mostly;
+static struct jump_label_key udp_encap_needed __read_mostly;
+void udp_encap_enable(void)
+{
+/* tihuan  原 kernel 3.18.45 中的函数 如下
+	if (!static_key_enabled(&udp_encap_needed))
+		static_key_slow_inc(&udp_encap_needed);
+*/
+	if (!jump_label_enabled(&udp_encap_needed))
+		jump_label_inc(&udp_encap_needed);
+}
+//EXPORT_SYMBOL(udp_encap_enable);
+
+/****************************************************************************************************/
+/************************************   udp.c    ************************************************/
+/****************************************************************************************************/
+
+/****************************************************************************************************/
+/************************************   ip_tunnel.c    ************************************************/
+/****************************************************************************************************/
+
+/****************************************************************************************************/
+/************************************   ip_tunnel.c     ************************************************/
+/****************************************************************************************************/
 
 int udp_sock_create4(struct net *net, struct udp_port_cfg *cfg,
 		     struct socket **sockp)
@@ -72,7 +151,14 @@ void setup_udp_tunnel_sock(struct net *net, struct socket *sock,
 	udp_sk(sk)->encap_rcv = cfg->encap_rcv;
 	udp_sk(sk)->encap_destroy = cfg->encap_destroy;
 
-	udp_tunnel_encap_enable(sock);
+//	udp_tunnel_encap_enable(sock);
+//#if IS_ENABLED(CONFIG_IPV6)
+#if 0
+	if (sock->sk->sk_family == PF_INET6)
+		ipv6_stub->udpv6_encap_enable();
+	else
+#endif
+	udp_encap_enable();
 }
 EXPORT_SYMBOL_GPL(setup_udp_tunnel_sock);
 

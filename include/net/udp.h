@@ -161,8 +161,7 @@ static inline __sum16 udp_v4_check(int len, __be32 saddr,
 	return csum_tcpudp_magic(saddr, daddr, len, IPPROTO_UDP, base);
 }
 
-void udp_set_csum(bool nocheck, struct sk_buff *skb,
-		  __be32 saddr, __be32 daddr, int len);
+
 /* hash routines shared between UDPv4/6 and UDP-Litev4/6 */
 static inline void udp_lib_hash(struct sock *sk)
 {
@@ -306,8 +305,8 @@ extern void udp_init(void);
 extern int udp4_ufo_send_check(struct sk_buff *skb);
 extern struct sk_buff *udp4_ufo_fragment(struct sk_buff *skb,
 	netdev_features_t features);
-void udp_encap_enable(void);
-#if IS_ENABLED(CONFIG_IPV6)
-void udpv6_encap_enable(void);
-#endif
+//void udp_encap_enable(void);
+//#if IS_ENABLED(CONFIG_IPV6)
+//void udpv6_encap_enable(void);
+//#endif
 #endif	/* _UDP_H */

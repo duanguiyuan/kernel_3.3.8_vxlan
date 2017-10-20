@@ -188,7 +188,7 @@ config NET_IPGRE_DEMUX
 
 config NET_IP_TUNNEL
 	tristate
-	default n
+	default m
 
 config NET_IPGRE
 	tristate "IP: GRE tunnels over IP"
@@ -317,7 +317,7 @@ config SYN_COOKIES
 config NET_UDP_TUNNEL
 	tristate
 	select NET_IP_TUNNEL
-	default y
+	default m
 config INET_AH
 	tristate "IP: AH transformation"
 	select XFRM

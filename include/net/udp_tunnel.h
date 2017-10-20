@@ -113,7 +113,7 @@ static inline void udp_tunnel_gro_complete(struct sk_buff *skb, int nhoff)
 	skb_shinfo(skb)->gso_type |= uh->check ?
 				SKB_GSO_UDP_TUNNEL_CSUM : SKB_GSO_UDP_TUNNEL;
 }
-
+/*
 static inline void udp_tunnel_encap_enable(struct socket *sock)
 {
 //#if IS_ENABLED(CONFIG_IPV6)
@@ -124,5 +124,5 @@ static inline void udp_tunnel_encap_enable(struct socket *sock)
 #endif
 	udp_encap_enable();
 }
-
+*/
 #endif
