@@ -750,7 +750,7 @@ static void vxlan_notify_add_rx_port(struct vxlan_sock *vs)
 	rcu_read_lock();
 //printk("vxlan_notify_add_rx_port ..3 \n");	
 	for_each_netdev_rcu(net, dev) {
-//printk("vxlan_notify_add_rx_port ..4 [%s][%d]sa_family[%d]\n",dev->name,port,sa_family);
+printk("vxlan_notify_add_rx_port ... [%s][%d]sa_family[%d]type[%d]\n",dev->name,port,sa_family,dev->type);
 		/* 调试 01 */
 		/* 此处 如果 dev->name 是 wifi 则会报异常 推测是 wifi 驱动问题 故 除去wifi的相关操作 */
 		/*原始 函数 */ //if (dev->netdev_ops->ndo_add_vxlan_port)
@@ -1107,8 +1107,8 @@ static bool vxlan_snoop(struct net_device *dev,
 
 		if (net_ratelimit())
 			netdev_info(dev,
-				    "%pM migrated from %pIS to %pIS\n",
-				    src_mac, &rdst->remote_ip, &src_ip);
+				    "%pM migrated from %pI4 to %pI4\n",
+				    src_mac, &rdst->remote_ip.sin.sin_addr.s_addr, &src_ip->sin.sin_addr.s_addr);
 
 		rdst->remote_ip = *src_ip;
 		f->updated = jiffies;
@@ -1310,10 +1310,15 @@ static void vxlan_rcv(struct vxlan_sock *vs,
 	skb_scrub_packet(skb, !net_eq(vxlan->net, dev_net(vxlan->dev)));
 	skb->protocol = eth_type_trans(skb, vxlan->dev);
 	skb_postpull_rcsum(skb, eth_hdr(skb), ETH_HLEN);
+	/*
+	*解决 组播 和 广播包重包问题
+	*/
+	//printk("vxlan...h_source [%pM] dev[%s]addr [%pM] cloned [%d]\n",eth_hdr(skb)->h_source,vxlan->dev->name,vxlan->dev->dev_addr,skb->cloned);
+	if(skb->cloned && (skb->pkt_type ==PACKET_MULTICAST ||skb->pkt_type ==PACKET_BROADCAST))
+		goto drop;
 /* tihuan 替换 mac 比较函数 兼容 不通版本的 内核  */
 	/* Ignore packet loops (and multicast echo) */
 //	if (ether_addr_equal(eth_hdr(skb)->h_source, vxlan->dev->dev_addr))
-////printk("h_source [%pM] dev_addr [%pM] \n",eth_hdr(skb)->h_source,vxlan->dev->dev_addr);
 	if (0 == compare_ether_addr(eth_hdr(skb)->h_source, vxlan->dev->dev_addr))/*报文的 源MAC 是设备自己则丢弃*/
 		goto drop;
 ////printk("not drop\n");
@@ -1366,7 +1371,8 @@ static void vxlan_rcv(struct vxlan_sock *vs,
 	stats->rx_packets++;
 	stats->rx_bytes += skb->len;
 	u64_stats_update_end(&stats->syncp);
-
+/*标志着控制由特定于网卡的代码转移到了网络层的通用接口部分*/
+//printk("send to Network [%s]\n",skb->dev->name);
 	netif_rx(skb);
 
 	return;
