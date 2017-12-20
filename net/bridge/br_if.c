@@ -367,7 +367,7 @@ int br_add_if(struct net_bridge *br, struct net_device *dev)
 	err = netdev_set_master(dev, br->dev);
 	if (err)
 		goto err3;
-
+//更换设备的收包函数
 	err = netdev_rx_handler_register(dev, br_handle_frame, p);
 	if (err)
 		goto err4;

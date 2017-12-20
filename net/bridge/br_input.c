@@ -64,17 +64,20 @@ int br_handle_frame_finish(struct sk_buff *skb)
 	struct net_bridge_port *pdst = NULL;
 	br_get_dst_hook_t *get_dst_hook = rcu_dereference(br_get_dst_hook);
 
+ //如果端口不可用，则直接丢弃数据包
 	if (!p || p->state == BR_STATE_DISABLED)
 		goto drop;
 
+ //对vlan标签做相关判断，查看skb是否符合
 	/* insert into forwarding database after filtering to avoid spoofing */
 	br = p->br;
-	br_fdb_update(br, p, eth_hdr(skb)->h_source);
+	br_fdb_update(br, p, eth_hdr(skb)->h_source);//更新转发表
 
 	if (!is_broadcast_ether_addr(dest) && is_multicast_ether_addr(dest) &&
 	    br_multicast_rcv(br, p, skb))
 		goto drop;
 
+	//此时已经更新表完毕，端口若还是处于学习状态就drop
 	if ((p->state == BR_STATE_LEARNING) && skb->protocol != htons(ETH_P_PAE))
 		goto drop;
 
@@ -121,16 +124,21 @@ int br_handle_frame_finish(struct sk_buff *skb)
 		skb = NULL;
 	}
 
+//__br_fdb_get
+ //查找转发表并判断表项，如果表项存在且端口是本地端口
+ //转发表中表项存在且不是本地端口，即需要转发到其他端口
 	if (skb) {
 		if (dst) {
 			dst->used = jiffies;
 			pdst = dst->dst;
 		}
 
-		if (pdst)
-			br_forward(pdst, skb, skb2);
+		if (pdst){
+			br_forward(pdst, skb, skb2);//转发单播
+
+		}
 		else
-			br_flood_forward(br, skb, skb2);
+			br_flood_forward(br, skb, skb2);//转发组播
 	}
 
 	if (skb2)
@@ -167,6 +175,7 @@ static inline int is_link_local(const unsigned char *dest)
 /*
  * Return NULL if skb is handled
  * note: already called with rcu_read_lock
+ * 数据包进入桥的入口
  */
 rx_handler_result_t br_handle_frame(struct sk_buff **pskb)
 {
@@ -177,7 +186,7 @@ rx_handler_result_t br_handle_frame(struct sk_buff **pskb)
 
 	if (unlikely(skb->pkt_type == PACKET_LOOPBACK))
 		return RX_HANDLER_PASS;
-
+//打印 包的源地址 和 目的地址
 	if (!is_valid_ether_addr(eth_hdr(skb)->h_source))
 		goto drop;
 
@@ -187,7 +196,7 @@ rx_handler_result_t br_handle_frame(struct sk_buff **pskb)
 
 	p = br_port_get_rcu(skb->dev);
 
-	if (unlikely(is_link_local(dest))) {
+	if (unlikely(is_link_local(dest))) {//是组播mac
 		/*
 		 * See IEEE 802.1D Table 7-10 Reserved addresses
 		 *
@@ -227,7 +236,7 @@ rx_handler_result_t br_handle_frame(struct sk_buff **pskb)
 			return RX_HANDLER_PASS;	/* continue processing */
 		}
 	}
-
+//开始转发
 forward:
 	switch (p->state) {
 	case BR_STATE_FORWARDING:
@@ -241,9 +250,9 @@ forward:
 		}
 		/* fall through */
 	case BR_STATE_LEARNING:
-		if (!compare_ether_addr(p->br->dev->dev_addr, dest))
-			skb->pkt_type = PACKET_HOST;
-
+		if (!compare_ether_addr(p->br->dev->dev_addr, dest))//如果数据包进入的端口的MAC和数据包的目的MAC相同
+			skb->pkt_type = PACKET_HOST;//表明这是host的数据，需要直接上缴给协议栈
+			
 		NF_HOOK(NFPROTO_BRIDGE, NF_BR_PRE_ROUTING, skb, skb->dev, NULL,
 			br_handle_frame_finish);
 		break;

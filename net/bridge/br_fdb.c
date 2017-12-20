@@ -411,7 +411,7 @@ int br_fdb_insert(struct net_bridge *br, struct net_bridge_port *source,
 	spin_unlock_bh(&br->hash_lock);
 	return ret;
 }
-
+/* addr 是接收到的报文 的  源mac */
 void br_fdb_update(struct net_bridge *br, struct net_bridge_port *source,
 		   const unsigned char *addr)
 {
@@ -432,11 +432,16 @@ void br_fdb_update(struct net_bridge *br, struct net_bridge_port *source,
 		/* attempt to update an entry for a local interface */
 		if (unlikely(fdb->is_local)) {
 			if (net_ratelimit())
+			{
 				br_warn(br, "received packet on %s with "
 					"own address as source address\n",
 					source->dev->name);
+			
+			}
+				
 		} else {
 			/* fastpath: update of existing entry */
+			/*添加打印信息 查看查到打 表数据*/
 			fdb->dst = source;
 			fdb->updated = jiffies;
 		}
