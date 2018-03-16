@@ -1,3 +1,0 @@
-kernel/crypto/sha1_generic.ko
-kernel/crypto/ecb.ko
-kernel/crypto/arc4.ko

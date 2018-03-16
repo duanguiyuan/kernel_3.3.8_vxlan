@@ -50,3 +50,11 @@ modules.order
 Module.symvers
 Mkfile.old
 dkms.conf
+kernel/timeconst.h 
+lib/gen_crc32table 
+usr/.initramfs_data.cpio.d 
+usr/initramfs_data.cpio
+*modules.builtin
+*modules.order
+*.mod.c
+*.cmd
